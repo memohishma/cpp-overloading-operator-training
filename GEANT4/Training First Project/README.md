@@ -13,8 +13,6 @@ This repository documents my hands-on learning journey with Geant4 through Physi
 - [ ] Master C++ implementation in simulation context  
 - [ ] Build foundation for original BNCT research
 
-## 📁 Project Structure
-
 ## 💡 Note
 These are tutorial-based implementations. My original research code for BNCT bone tumor simulation will be in separate repositories.
 
