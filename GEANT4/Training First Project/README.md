@@ -1,7 +1,22 @@
 .# Geant4 Learning Journey - Tutorial Projects
 
-## 🎯 Project Description
-This repository documents my hands-on learning journey with Geant4 through Physics Matters YouTube tutorials.
+## 📁 Project Description
+This project contains my **first hands-on Geant4 training code**, written while following 
+the YouTube tutorial series by *Physics Matters*.  
+I am manually typing every header (`.hh`) and source (`.cc`) file from the tutorial to help 
+reinforce the structure, concepts, and workflow of Geant4 simulations.
+
+## 🎯 Purpose of This Repository
+This repository is **not** an original project.  
+It is a **training and learning environment** where I rewrite the code shown in the tutorials 
+to build familiarity with:
+- Folder structure (`include/`, `src/`)
+- Detector and geometry setup
+- Physics lists
+- Action initialization
+- Primary generator
+- CMake project structure
+
 
 ## 📚 Tutorial Source
 - Channel: Physics Matters
