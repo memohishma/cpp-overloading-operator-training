@@ -17,5 +17,5 @@ This repository documents my hands-on learning journey with Geant4 through Physi
 These are tutorial-based implementations. My original research code for BNCT bone tumor simulation will be in separate repositories.
 
 ## 📅 Progress Tracking
-- Start Date: [8//11/2025]
+- Start Date: [8/11/2025]
 - Status: In Progress (7/17 tutorials completed)
