@@ -49,28 +49,41 @@ G4VPhysicalVolume *MyDetectorConstruction::Construct()
 
     WorldMat->SetMaterialPropertiesTable(mptWorld);
 
-    G4Box *solidWorld = new G4Box("solidWorld", 0.5*m, 0.5*m, 0.5*m);
+ /*==============================================================================================================*/
+   /*1*/
+   // G4Box *solidWorld = new G4Box("solidWorld",xWorld,yWorld,zWorld);
+             solidWorld = new G4Box("solidWorld",xWorld,yWorld,zWorld);
 
-    G4LogicalVolume *logicWorld = new G4LogicalVolume(solidWorld, WorldMat,"logicWorld");
+   // G4LogicalVolume *logicWorld = new G4LogicalVolume(solidWorld, WorldMat,"logicWorld");
+                       logicWorld = new G4LogicalVolume(solidWorld, WorldMat,"logicWorld");
 
-    G4VPhysicalVolume *physWorld = new G4PVPlacement(0,G4ThreeVector(0. , 0. , 0. ),logicWorld,"physWorld",0,false,0,true);
+  /*2*/ // G4VPhysicalVolume *physWorld = new G4PVPlacement(0,G4ThreeVector(0. , 0. , 0. ),logicWorld,"physWorld",0,false,0,true);
+                              physWorld = new G4PVPlacement(0,G4ThreeVector(0. , 0. , 0. ),logicWorld,"physWorld",0,false,0,true);
 
-    G4Box *solidRadiator = new G4Box("solidRadiator",0.4*m,0.4*m, 0.01*m);
+   // G4Box *solidRadiator = new G4Box("solidRadiator",0.4*m,0.4*m, 0.01*m);
+             solidRadiator = new G4Box("solidRadiator",0.4*m,0.4*m, 0.01*m);
 
-    G4LogicalVolume *logicRadiator = new G4LogicalVolume(solidRadiator,Aerogel,"logicRadiator");
-    G4VPhysicalVolume *physRadiator = new G4PVPlacement(0, G4ThreeVector(0. ,0. ,0.25*m),logicRadiator,"physRadiator",logicWorld, false,0,true);
+ // G4LogicalVolume *logicRadiator = new G4LogicalVolume(solidRadiator,Aerogel,"logicRadiator");
+                       logicRadiator = new G4LogicalVolume(solidRadiator,Aerogel,"logicRadiator");
 
-    G4Box *solidDetector = new G4Box("solidDetector",0.005*m,0.005*m,0.01*m);
+   // G4VPhysicalVolume *physRadiator = new G4PVPlacement(0, G4ThreeVector(0. ,0. ,0.25*m),logicRadiator,"physRadiator",logicWorld, false,0,t>
+                       physRadiator = new G4PVPlacement(0, G4ThreeVector(0. ,0. ,0.25*m),logicRadiator,"physRadiator",logicWorld, false,0,true);
 
-    G4LogicalVolume *logicDetector = new G4LogicalVolume(solidDetector,WorldMat, "logicalDetector");
+   // G4Box *solidDetector = new G4Box("solidDetector",xWorld/nCols,yWorld/nRows,0.01*m);
+             solidDetector = new G4Box("solidDetector",xWorld/nCols,yWorld/nRows,0.01*m);
 
-    for(G4int i=0; i<100 ; i++)
-   {
-       for(G4int j=0; j<100 ;j++)
+    //G4LogicalVolume *logicDetector = new G4LogicalVolume(solidDetector,WorldMat, "logicalDetector");
+                       logicDetector = new G4LogicalVolume(solidDetector,WorldMat, "logicalDetector");
+
+    for(G4int i=0; i< nRows ; i++)
+    {
+       for(G4int j=0; j< nCols ;j++)
        {
-           G4VPhysicalVolume *physDetector = new G4PVPlacement(0,G4ThreeVector(-0.5*m+(i+0.5)*m/100,-0.5*m+(j+0.5)*m/100,0.49*m), logicDetect>
+          // G4VPhysicalVolume *physDetector = new G4PVPlacement(0,G4ThreeVector(-0.5*m+(i+0.5)*m/nCols,-0.5*m+(j+0.5)*m/nRows,0.49*m), logic>
+                                physDetector = new G4PVPlacement(0,G4ThreeVector(-0.5*m+(i+0.5)*m/nCols,-0.5*m+(j+0.5)*m/nRows,0.49*m), logic>
        }
-    }
+       }
+/*=====================================================================================================================*/
     return physWorld;
    }
 
