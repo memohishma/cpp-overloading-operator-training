@@ -15,7 +15,7 @@
 #include "detector.hh"
 class MyDetectorConstruction : public G4VUserDetectorConstruction
 {
-   public:
+  public:
       MyDetectorConstruction();
       ~MyDetectorConstruction();
 
@@ -26,7 +26,10 @@ class MyDetectorConstruction : public G4VUserDetectorConstruction
     G4LogicalVolume *logicDetector;
 
     G4int nCols, nRows;
+
+    G4Box *solidWorld, *solidRadiator , *solidDetector;
+    G4LogicalVolume *logicWorld, *logicRadiator , *logicDetector;
+
     G4GenericMessenger *fMessenger;
-
-
 };
+#endif
