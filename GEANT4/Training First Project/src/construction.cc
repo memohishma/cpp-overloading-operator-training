@@ -25,7 +25,7 @@ G4VPhysicalVolume *MyDetectorConstruction::Construct()
     Aerogel->AddMaterial(H2O, 37.4*perCent);
     Aerogel->AddElement(C, 0.1*perCent);
 
- G4double energy[2] = {1.239841939*eV/0.9,1.239841939*eV/0.2,};
+    G4double energy[2] = {1.239841939*eV/0.9,1.239841939*eV/0.2,};
     G4double rindexAerogel[2] = {1.1, 1.1};
     G4double rindexWorld[2] = {1.0, 1.0};
 
@@ -50,13 +50,13 @@ G4VPhysicalVolume *MyDetectorConstruction::Construct()
     G4Box *solidRadiator = new G4Box("solidRadiator",0.4*m,0.4*m, 0.01*m);
 
     G4LogicalVolume *logicRadiator = new G4LogicalVolume(solidRadiator,Aerogel,"logicRadiator");
-G4VPhysicalVolume *physRadiator = new G4PVPlacement(0, G4ThreeVector(0. ,0. ,0.25*m),logicRadiator,"physRadiator",logicWorld, false,0,tru>
+    G4VPhysicalVolume *physRadiator = new G4PVPlacement(0, G4ThreeVector(0. ,0. ,0.25*m),logicRadiator,"physRadiator",logicWorld, false,0,true);
 
     G4Box *solidDetector = new G4Box("solidDetector",0.005*m,0.005*m,0.01*m);
 
     G4LogicalVolume *logicDetector = new G4LogicalVolume(solidDetector,WorldMat, "logicalDetector");
 
-   for(G4int i=0; i<100 ; i++)
+    for(G4int i=0; i<100 ; i++)
    {
        for(G4int j=0; j<100 ;j++)
        {
@@ -64,7 +64,7 @@ G4VPhysicalVolume *physRadiator = new G4PVPlacement(0, G4ThreeVector(0. ,0. ,0.2
        }
     }
     return physWorld;
-}
+   }
 
     void MyDetectorConstruction::ConstructSDandFields()
     {
