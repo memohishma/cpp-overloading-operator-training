@@ -10,6 +10,7 @@
 #include "G4SystemOfUnits.hh"
 #include "G4VPhysicalVolume.hh"
 #include "G4PVPlacement.hh"
+#include "G4GenericMessenger.hh"
 
 #include "detector.hh"
 class MyDetectorConstruction : public G4VUserDetectorConstruction
@@ -23,5 +24,9 @@ class MyDetectorConstruction : public G4VUserDetectorConstruction
 
    private:
     G4LogicalVolume *logicDetector;
+
+    G4int nCols, nRows;
+    G4GenericMessenger *fMessenger;
+
 
 };
