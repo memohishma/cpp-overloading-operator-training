@@ -1,7 +1,15 @@
 #include "construction.hh"
 
 MyDetectorConstruction::MyDetectorConstruction()
-{}
+{
+   fMessenger = new G4GenericMessenger(this, "/detector/","DetectorConstruction");
+
+   fMessenger->DeclareProperty("nCols", nCols, "Number of Columns");
+   fMessenger->DeclareProperty("nRows", nRows, "Number of Rows");
+
+   nCols = 100;
+   nRows = 100;
+}
 
 MyDetectorConstruction::~MyDetectorConstruction()
 {}
