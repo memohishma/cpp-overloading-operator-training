@@ -22,3 +22,158 @@ int main()
 }
 ==========================================================================================================================================
 2.
+#include<iostream>
+using namespace std;
+class Test
+{
+    private: 
+      int x=0;
+    public:
+    Test()
+    {
+        cout<<"enter the value of x : ";
+        cin>>x;
+    }
+    void Sum()
+    {
+        x+=5;
+    }
+    void print()
+    {
+     cout<<"The value of x is : "<<x<<endl;   
+    }
+};
+int main()
+{
+    Test ob1;
+    ob1.Sum();
+    ob1.print();
+    
+    
+    return 0;
+}
+========================================================================================================================================
+3.
+#include<iostream>
+using namespace std;
+class Test
+{
+    private: 
+      int x=0;
+    public:
+    Test()
+    {
+        cout<<"enter the value of x : ";
+        cin>>x;
+    }
+    void print()
+    {
+     cout<<"The value of x is : "<<x<<endl;   
+    }
+    void operator +=(int)
+    {
+        x+=12;
+    }
+};
+int main()
+{
+    Test ob1;//x=10
+    ob1 += 12;
+    ob1.print();//x=x+5=10+5=15
+    
+    return 0;
+}
+=========================================================================================================================================
+4.
+#include<iostream>
+using namespace std;
+class Test
+{
+    private: 
+      int x=0;
+    public:
+    Test()
+    {
+        cout<<"enter the value of x : ";
+        cin>>x;
+    }
+    void print()
+    {
+     cout<<"The value of x is : "<<x<<endl;   
+    }
+    void operator +=(int y)
+    {
+        x+=y;
+    }
+};
+int main()
+{
+    Test ob1;//x=12
+    ob1 += 12;
+    ob1.print();//x=x+y=10+12=22
+    
+    return 0;
+}
+=======================================================================================================================================
+5.
+#include<iostream>
+using namespace std;
+class Test
+{
+    private: 
+      int x=0;
+    public:
+    Test()
+    {
+        cout<<"enter the value of x : ";
+        cin>>x;
+    }
+    void print()
+    {
+     cout<<"The value of x is : "<<x<<endl;   
+    }
+    void operator +=(int y)
+    {
+        x+=y;
+    }
+    void operator -=(int y)
+    {
+        x-=y;
+    }
+};
+int main()
+{
+    Test ob1;//10
+    ob1 += 10;
+    ob1.print();//20
+    ob1-= 12;
+    ob1.print();//8
+    
+    
+    return 0;
+}
+========================================================================================================================================
+6.
+#include<iostream>
+using namespace std;
+class Count
+{
+    private: 
+      int value=0;
+      int x=0;
+    public:
+    Count() : value (20) , x(2)
+    {
+        cout<<"Hello"<<endl;
+        cout<<"the value of x is :"<<x<<endl;
+        cout<<"the value is "<<value<<endl;
+    }
+    
+};
+int main()
+{
+   Count ob1;
+   //will print hello,2,20
+   
+    return 0;
+}
