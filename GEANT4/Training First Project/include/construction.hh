@@ -15,11 +15,13 @@
 #include "detector.hh"
 class MyDetectorConstruction : public G4VUserDetectorConstruction
 {
-  public:
+ public:
       MyDetectorConstruction();
-      ~MyDetectorConstruction();
+     ~MyDetectorConstruction();
 
-    virtual G4VPhysicalVolume *Construct();
+      G4LogicalVolume *GetScoringVolume() const { return fScoringVolume; }
+
+        virtual G4VPhysicalVolume *Construct();
         virtual void ConstructSDandFields();
 
    private:
@@ -28,8 +30,18 @@ class MyDetectorConstruction : public G4VUserDetectorConstruction
     G4int nCols, nRows;
 
     G4Box *solidWorld, *solidRadiator , *solidDetector;
-    G4LogicalVolume *logicWorld, *logicRadiator , *logicDetector;
+    G4LogicalVolume *logicWorld, *logicRadiator;
+    G4VPhysicalVolume *physWorld ,*physRadiator ,*physDetector;
 
     G4GenericMessenger *fMessenger;
+
+    G4LogicalVolume *fScoringVolume;
+
+    G4Material *SiO2, *H2O, *Aerogel, *WorldMat;
+    G4Element *C;
+
+   void DefineMaterial();
 };
 #endif
+
+
