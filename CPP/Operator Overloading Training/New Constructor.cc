@@ -91,3 +91,71 @@ int main()
   
     return 0;
 }
+=========================================================================================================================================
+4.
+#include<iostream>
+using namespace std;
+class Count
+{
+  private:
+   int value;
+   
+  public:
+    Count()
+    {
+        value=5;
+    }
+    void display()
+    {
+        cout<<"value is : "<<value<<endl;
+    }
+    
+    Count operator ++()//count2 = ++count1;
+    {
+        Count ob;
+        ob.value = ++value;
+        return ob;
+    }
+};
+int main()
+{
+    Count count1;
+    Count count2;
+    count2 = ++count1;
+    count1.display();
+    count2.display();
+    return 0;
+}
+========================================================================================================================================
+5.
+#include<iostream>
+using namespace std;
+//Count : with three objects
+//result = count1 + count count2//
+class Count 
+{
+  private:
+    int value;
+  public:
+    Count() : value(5){}
+    //result = count1 + count2
+    Count operator +(Count ob)
+    {
+        Count result;
+        result.value = value + ob.value;
+        return result;
+    }
+    void print()//count1.print
+    {
+        cout<<"value is : "<<value<<endl;
+    }
+};
+int main()
+{
+    Count count1;
+    Count count2;
+    Count result;
+    result = count1 + count2;
+    result.print();//x=10
+    return 0;
+}
