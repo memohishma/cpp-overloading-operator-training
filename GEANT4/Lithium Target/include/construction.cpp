@@ -1,4 +1,4 @@
-ifndef CONSTRUCTION_HH
+#ifndef CONSTRUCTION_HH
 #define CONSTRUCTION_HH
 
 #include "G4VPhysicalVolume.hh"
@@ -8,6 +8,7 @@ ifndef CONSTRUCTION_HH
 #include "G4PVPlacement.hh"
 #include "G4NistManager.hh"
 #include "G4LogicalVolume.hh"
+#include "G4GenericMessenger.hh"
 
 class MyDetector : public G4VUserDetectorConstruction
 {
@@ -16,7 +17,15 @@ public:
     MyDetector();
     virtual ~MyDetector();
 
-    virtual G4VPhysicalVolume *Construct();
+    virtual G4VPhysicalVolume *Construct() override;
+    virtual void ConstructSDandField() override;
+private:
+
+    G4LogicalVolume *logicDetector;
+
+    G4int nCols, nRows;
+
+    G4GenericMessenger *fMessenger;
 };
 #endif
 
