@@ -1,4 +1,4 @@
-  GNU nano 7.2                                                      src/main.cc                                                                
+                                                            
 #include <iostream>
 
 #include "G4RunManager.hh"
