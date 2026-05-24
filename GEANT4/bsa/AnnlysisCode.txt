@@ -136,7 +136,9 @@ ax.xaxis.set_minor_locator(ticker.AutoMinorLocator(5))
 ax.yaxis.set_minor_locator(ticker.AutoMinorLocator(5))
 ax.yaxis.set_major_formatter(ticker.ScalarFormatter(useMathText=True))
 ax.ticklabel_format(axis='y', style='sci', scilimits=(0,0))
-ax.legend(fontsize=10, loc='upper left')
+تعديل مريم لترتيب الطبقات وإزاحة المفتاح الأيسر للأعلى وخلف الصندوق الأيمن ---
+ax.legend(fontsize=8.5, loc='upper left', bbox_to_anchor=(0.02, 0.96), zorder=1)
+#ax.legend(fontsize=10, loc='upper left')
 ax.grid(color='#eeeeee', lw=0.7, ls='--')
 
 plt.tight_layout()
