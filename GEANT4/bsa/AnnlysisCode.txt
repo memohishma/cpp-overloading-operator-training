@@ -1,0 +1,176 @@
+import pandas as pd
+import glob
+import numpy as np
+import matplotlib.pyplot as plt
+from matplotlib.colors import Normalize
+from scipy.ndimage import gaussian_filter
+from matplotlib.ticker import AutoMinorLocator
+
+# =====================================================================================
+# ١. تعريف الثوابت الفيزيائية والحركية لحزمتكِ (تعدل يدوياً هنا)
+# =====================================================================================
+E0_MeV = 2.2         # متوسط طاقة البروتونات
+dE_MeV = 0.2         # التشتت الغاوسي للطاقة Sigma
+BEAM_SPOT_CM = 0.5   # نصف قطر الحزمة الحقيقي (5 مم تحول إلى 0.5 سم)
+THETA_mrad = 10.0    # التشتت الزاوي بالميلي راديان
+
+# حساب الزاوية بالراديان تلقائياً لاستخدامها في حلقة الانفراج الزاوي (Angular Ring)
+THETA_rad = THETA_mrad / 1000.0  
+
+# =====================================================================================
+# ٢. قراءة ودمج سلسلة ملفات التدرج الجديدة تلقائياً
+# =====================================================================================
+# الكود سيبحث عن كل الملفات المرفوعة التي تحتوي على هذا الاسم تماماً
+all_files = glob.glob("output_nt_Target_t* (8).csv")
+
+df_list = []
+
+for file in all_files:
+    df = pd.read_csv(
+        file,
+        comment='#',
+        header=None,
+        names=[
+            "Event",
+            "PreStepEnergy",
+            "PostStepEnergy",
+            "X",
+            "Y",
+            "Z"
+        ]
+    )
+    df_list.append(df)
+
+# التحقق من نجاح عملية القراءة
+if len(all_files) == 0:
+    raise FileNotFoundError("⚠️ لم يتم العثور على أي ملفات! تأكدي من رفع الملفات ذات الرمز (5).csv في الكولاب.")
+
+combined_df = pd.concat(df_list, ignore_index=True)
+combined_df = combined_df.dropna()
+
+# =====================================================================================
+# ٣. استخراج البيانات وتصحيح الوحدات (من mm إلى cm)
+# =====================================================================================
+# الجينت يخرج الإحداثيات بالـ mm ونحن نريدها بالـ cm لتتوافق مع محاور الرسمة وحسابات الـ Sigma
+X_cm = combined_df["X"].values / 10.0
+Y_cm = combined_df["Y"].values / 10.0
+
+N_total = len(X_cm)
+
+# =====================================================================================
+# ٤. حسابات الإحصاء والمظهر الاحترافي للرسمة (شغلكِ الأصلي المحسّن)
+# =====================================================================================
+plt.rcParams.update({
+    'font.family':'sans-serif','font.sans-serif':['Arial','DejaVu Sans'],
+    'font.size':13,'axes.linewidth':1.4,'axes.edgecolor':'black',
+    'xtick.direction':'in','ytick.direction':'in',
+    'xtick.major.size':7,'ytick.major.size':7,
+    'xtick.top':True,'ytick.right':True,
+    'figure.facecolor':'white','axes.facecolor':'white',
+    'legend.frameon':True,'legend.framealpha':0.92,
+    'legend.edgecolor':'#cccccc',
+})
+
+CMAP = 'hot'          # خريطة لونية حرارية ممتازة للخلفيات البيضاء
+
+# حساب المراكز والانحرافات المعيارية للحزمة المدمجة
+cx, cy = X_cm.mean(), Y_cm.mean()
+sx, sy = X_cm.std(),  Y_cm.std()
+ZOOM = 4.5
+
+x_lim = [cx - ZOOM*sx, cx + ZOOM*sx]
+y_lim = [cy - ZOOM*sy, cy + ZOOM*sy]
+
+# عمل الفلترة المساحية بناءً على أبعاد نافذة العرض
+mask = ((X_cm >= x_lim[0]) & (X_cm <= x_lim[1]) &
+        (Y_cm >= y_lim[0]) & (Y_cm <= y_lim[1]))
+Xp, Yp = X_cm[mask], Y_cm[mask]
+
+GRID = 80
+H, xe, ye = np.histogram2d(Xp, Yp, bins=GRID, range=[x_lim, y_lim])
+H_sm = gaussian_filter(H.T, sigma=1.8)
+xc = 0.5 * (xe[:-1] + xe[1:])
+yc = 0.5 * (ye[:-1] + ye[1:])
+Xg, Yg = np.meshgrid(xc, yc)
+vmax = H_sm.max()
+
+fig, ax = plt.subplots(figsize=(9, 8))
+ax.set_facecolor('white')
+
+# رسم خطوط الكنتور المملوءة والخطوط الجانبية الرفيعة
+im = ax.contourf(Xg, Yg, H_sm, levels=60, cmap=CMAP, norm=Normalize(0, vmax))
+ax.contour(Xg, Yg, H_sm, levels=10, colors='black', linewidths=0.45, alpha=0.25)
+
+theta = np.linspace(0, 2*np.pi, 500)
+
+# رسم حلقات الـ Sigma الإحصائية لشكل انتفاخ الحزمة
+ax.plot(cx + sx*np.cos(theta), cy + sy*np.sin(theta),
+        color='#1a5fa8', lw=1.8, ls='-',
+        label=rf'1$\sigma$  ($\sigma_X$={sx:.3f}, $\sigma_Y$={sy:.3f} cm)')
+
+ax.plot(cx + 2*sx*np.cos(theta), cy + 2*sy*np.sin(theta),
+        color='#1a5fa8', lw=1.4, ls='--', alpha=0.65,
+        label=r'2$\sigma$')
+
+ax.plot(cx + 3*sx*np.cos(theta), cy + 3*sy*np.sin(theta),
+        color='#1a5fa8', lw=1.0, ls=':', alpha=0.45,
+        label=r'3$\sigma$')
+
+# رسم حلقة الانفراج الزاوي (Angular spread ring) على مسافة 1 متر كمرجع
+r_ang = 100.0 * THETA_rad
+if r_ang <= (x_lim[1] - x_lim[0]) / 2:
+    ax.plot(cx + r_ang*np.cos(theta), cy + r_ang*np.sin(theta),
+            color='#e67e00', lw=1.8, ls='-.',
+            label=rf'$\Delta\theta$ = {THETA_mrad} mrad (1 m)')
+
+# تحديد موقع مركز الثقل للحزمة (Centroid)
+ax.plot(cx, cy, '+', color='black', ms=16, mew=2.8,
+        label=f'Centroid ({cx:.3f}, {cy:.3f}) cm')
+
+# إعدادات عمود الألوان
+cb = fig.colorbar(im, ax=ax, pad=0.02, fraction=0.046)
+cb.set_label('Neutron Counts', fontsize=12)
+cb.ax.tick_params(labelsize=10)
+
+# مربع النص الإحصائي الفخم أسفل اليسار (يحتوي على الـ FWHM الحقيقي)
+ax.text(0.02, 0.02,
+        f'Centroid: ({cx:.4f}, {cy:.4f}) cm\n'
+        f'$\\sigma_X$ = {sx:.4f} cm     FWHM$_X$ = {2.355*sx:.4f} cm\n'
+        f'$\\sigma_Y$ = {sy:.4f} cm     FWHM$_Y$ = {2.355*sy:.4f} cm\n'
+        f'N (in window) = {len(Xp):,}  /  N total = {N_total:,}',
+        transform=ax.transAxes, fontsize=9.5, va='bottom',
+        fontfamily='monospace',
+        bbox=dict(boxstyle='round,pad=0.45', fc='white',
+                  ec='#aaaaaa', alpha=0.92))
+
+ax.set_xlim(x_lim)
+ax.set_ylim(y_lim)
+ax.set_aspect('equal')
+
+ax.xaxis.set_minor_locator(AutoMinorLocator(5))
+ax.yaxis.set_minor_locator(AutoMinorLocator(5))
+
+ax.set_xlabel('X Position [cm]', fontsize=14, labelpad=8)
+ax.set_ylabel('Y Position [cm]', fontsize=14, labelpad=8)
+
+# العنوان الشامل المحدث ليدل على دمج التدرجات الكاملة
+ax.set_title(
+    r'$^{7}$Li(p,n)$^{7}$Be — Neutron Beam Spot Profile (Combined Targets)'
+    '\n'
+    rf'$E_p = {E0_MeV}\pm{dE_MeV}$ MeV  |  '
+    rf'$\Delta\theta = {THETA_mrad}$ mrad  |  $N_n$ = {N_total:,}',
+    fontsize=13, pad=10, color='#222222'
+)
+ax.legend(fontsize=10, loc='upper right')
+
+plt.tight_layout()
+
+# حفظ الصور بجودة نشر عالية
+fig.savefig('plot2_beam_spot_2d_combined.png', dpi=300, bbox_inches='tight', facecolor='white')
+fig.savefig('plot2_beam_spot_2d_combined.pdf', bbox_inches='tight', format='pdf', facecolor='white')
+
+plt.show()
+
+print("Saved Successfully → plot2_beam_spot_2d_combined.png / .pdf")
+print("Total Files Loaded:", len(all_files))
+print("Total Neutrons across all layers:", N_total)
