@@ -1,3 +1,298 @@
+#==============================================================================================================#
+#2D Gragh#
+import pandas as pd
+import glob
+import numpy as np
+import matplotlib.pyplot as plt
+import matplotlib.ticker as ticker
+from scipy.stats import gaussian_kde
+
+# =====================================================================================
+# ١. تعريف الثوابت الفيزيائية وبارامترات الحزمة (تعدل يدوياً هنا)
+# =====================================================================================
+E0_MeV = 2.2         # متوسط طاقة البروتونات المقذوفة
+dE_MeV = 0.2         # التشتت الغاوسي لطاقة البروتونات (Sigma)
+BEAM_SPOT_CM = 0.5   # نصف قطر الحزمة (0.5 سم = 5 مم)
+THETA_mrad = 10.0    # التشتت الزاوي بالميلي راديان
+
+# عدد البروتونات الإجمالي الكلي (المقذوفة في كل المحاكاة لجميع الملفات المدمجة)
+# اجمعي عدد بروتونات الـ Run كاملة وضعي الرقم هنا ليكون حساب الـ Yield صحيحاً
+N_PROTONS = 100000 * 32  # مثال: 100 ألف بروتون لكل ملف عبر 32 ملفاً
+
+# =====================================================================================
+# ٢. قراءة ودمج سلسلة ملفات التدرج الجديدة تلقائياً
+# =====================================================================================
+# الكود يبحث عن جميع الملفات المرفوعة في الكولاب والتي تنتهي بـ (5).csv
+all_files = glob.glob("output_nt_Target_t* (8).csv")
+
+df_list = []
+
+for file in all_files:
+    df = pd.read_csv(
+        file,
+        comment='#',
+        header=None,
+        names=[
+            "Event",
+            "PreStepEnergy",
+            "PostStepEnergy",
+            "X",
+            "Y",
+            "Z"
+        ]
+    )
+    df_list.append(df)
+
+# التحقق من نجاح عملية قراءة الملفات
+if len(all_files) == 0:
+    raise FileNotFoundError("⚠️ لم يتم العثور على أي ملفات! تأكدي من رفع الملفات ذات الرمز (5).csv في الكولاب.")
+
+combined_df = pd.concat(df_list, ignore_index=True)
+combined_df = combined_df.dropna()
+
+# =====================================================================================
+# ٣. استخراج طاقة النيوترونات وتحويل الوحدات (من MeV إلى keV)
+# =====================================================================================
+# نأخذ طاقة الخطوة ونضربها في 1000 لأن الجينت يخرجها بالـ MeV والرسمة تريدها بالـ keV
+E_keV = combined_df["PreStepEnergy"].values * 1000.0
+
+N_total = len(E_keV)  # إجمالي عدد النيوترونات الناتجة عبر كل السماكات
+
+# =====================================================================================
+# ٤. إعدادات المظهر الاحترافي والرسم (شغلكِ الأصلي المطور)
+# =====================================================================================
+plt.rcParams.update({
+    'font.family':'sans-serif','font.sans-serif':['Arial','DejaVu Sans'],
+    'font.size':12,'axes.linewidth':1.3,'axes.edgecolor':'black',
+    'xtick.direction':'in','ytick.direction':'in',
+    'xtick.major.size':6,'ytick.major.size':6,
+    'xtick.minor.size':3,'ytick.minor.size':3,
+    'xtick.top':True,'ytick.right':True,
+    'figure.facecolor':'white','axes.facecolor':'white',
+    'legend.frameon':True,'legend.framealpha':0.92,
+    'legend.edgecolor':'#cccccc',
+})
+
+HIST_COLOR = '#1a3a5c'
+FILL_COLOR = '#2c6fad'
+
+fig, ax = plt.subplots(figsize=(10, 6))
+
+# بناء الهيستوجرام الطبيعي الحسابي (Step Histogram)
+N_BINS = 100
+counts, bin_edges = np.histogram(E_keV, bins=N_BINS)
+bin_width = bin_edges[1] - bin_edges[0]
+yield_norm = counts / (N_PROTONS * bin_width)
+
+ax.step(bin_edges[:-1], yield_norm,
+        where='post', color=HIST_COLOR, lw=1.8,
+        label='Geant4 simulation')
+ax.fill_between(bin_edges[:-1], yield_norm,
+                step='post', color=FILL_COLOR, alpha=0.12)
+
+# حساب ورسم التوزيع الاحتمالي المستمر الممهد (KDE)
+kde = gaussian_kde(E_keV, bw_method='scott')
+E_grid = np.linspace(E_keV.min(), E_keV.max(), 1000)
+# دالة الـ KDE تُضرب في نسبة (العدد الكلي للنيوترونات / عدد البروتونات) لتطابق مقياس الـ Yield
+ax.plot(E_grid, kde(E_grid) * (N_total / N_PROTONS),
+        color='#8b0000', lw=2.0, ls='--', alpha=0.82,
+        label="KDE (Scott's bandwidth)")
+
+# رسم النطاق الطاقي لبروتونات الحزمة كمرجع خلفي باللون الأصفر
+ax.axvspan((E0_MeV - dE_MeV)*1000, (E0_MeV + dE_MeV)*1000,
+           color='#f0a500', alpha=0.10,
+           label=rf'$E_p = {E0_MeV}\pm{dE_MeV}$ MeV band')
+ax.axvline(E0_MeV*1000, color='#555', lw=1.1, ls=':',
+           alpha=0.70, label=f'$E_p$ = {E0_MeV} MeV')
+
+# ── صندوق الإحصائيات الفخم على الجانب الأيمن العلوي ─────────────────────────
+ax.text(0.97, 0.97,
+        f'$\\mu$ = {E_keV.mean():.1f} keV\n'
+        f'$\\tilde{{E}}$ = {np.median(E_keV):.1f} keV\n'
+        f'$\\sigma$ = {E_keV.std():.1f} keV\n'
+        f'N = {N_total:,}',
+        transform=ax.transAxes, fontsize=10,
+        va='top', ha='right',
+        bbox=dict(boxstyle='round,pad=0.4', fc='white',
+                  ec='#cccccc', alpha=0.93))
+
+# ضبط الحدود والأسماء بدقة علمية رصينة
+ax.set_xlim(left=0)
+ax.set_ylim(bottom=0)
+ax.set_xlabel('Neutron Kinetic Energy [keV]', fontsize=14, labelpad=8)
+ax.set_ylabel('Neutron Yield [n / keV / proton]', fontsize=14, labelpad=8)
+
+ax.set_title(
+    r'$^{7}$Li(p,n)$^{7}$Be — Neutron Energy Spectrum (Combined Targets)'
+    '\n'
+    rf'$E_p = {E0_MeV}\pm{dE_MeV}$ MeV  |  '
+    rf'Beam spot = {BEAM_SPOT_CM} cm  |  '
+    rf'$\Delta\theta = {THETA_mrad}$ mrad  |  $N_n$ = {N_total:,}',
+    fontsize=13, pad=10, color='#222222'
+)
+
+# تحسين شكل تدرجات المحاور وعلامات الترميز العلمي للأس الهيدروكربوني الـ Y
+ax.xaxis.set_minor_locator(ticker.AutoMinorLocator(5))
+ax.yaxis.set_minor_locator(ticker.AutoMinorLocator(5))
+ax.yaxis.set_major_formatter(ticker.ScalarFormatter(useMathText=True))
+ax.ticklabel_format(axis='y', style='sci', scilimits=(0,0))
+ax.legend(fontsize=10, loc='upper left')
+ax.grid(color='#eeeeee', lw=0.7, ls='--')
+
+plt.tight_layout()
+
+# حفظ الطيف بجودة فائقة وامتدادين للرسالة والطباعة
+fig.savefig('plot1_energy_spectrum_combined.png', dpi=300, bbox_inches='tight', facecolor='white')
+fig.savefig('plot1_energy_spectrum_combined.pdf', bbox_inches='tight', format='pdf', facecolor='white')
+
+plt.show()
+
+print("Saved Successfully → plot1_energy_spectrum_combined.png / .pdf")
+print("Total Files Loaded:", len(all_files))
+print("Total Neutrons analyzed:", N_total)
+
+#=================================================================================================================#
+#3D Gragh#
+
+import pandas as pd
+import glob
+import numpy as np
+import matplotlib.pyplot as plt
+from matplotlib.colors import Normalize
+from scipy.ndimage import gaussian_filter
+from mpl_toolkits.mplot3d import Axes3D
+
+# =====================================================================================
+# ١. تعريف الثوابت الفيزيائية وبارامترات الحزمة (تعدل يدوياً هنا)
+# =====================================================================================
+E0_MeV = 2.2         # متوسط طاقة البروتونات المقذوفة
+dE_MeV = 0.2         # التشتت الغاوسي لطاقة البروتونات (Sigma)
+BEAM_SPOT_CM = 0.5   # نصف قطر الحزمة الحقيقي (0.5 سم = 5 مم)
+THETA_mrad = 10.0    # التشتت الزاوي بالميلي راديان
+
+# =====================================================================================
+# ٢. قراءة ودمج سلسلة ملفات التدرج الجديدة تلقائياً عبر glob
+# =====================================================================================
+# الكود يبحث عن كل الملفات المرفوعة في الكولاب والتي تنتهي بـ (5).csv
+all_files = glob.glob("output_nt_Target_t* (8).csv")
+
+df_list = []
+
+for file in all_files:
+    df = pd.read_csv(
+        file,
+        comment='#',
+        header=None,
+        names=[
+            "Event",
+            "PreStepEnergy",
+            "PostStepEnergy",
+            "X",
+            "Y",
+            "Z"
+        ]
+    )
+    df_list.append(df)
+
+# التحقق من نجاح عملية قراءة الملفات في ذاكرة الكولاب
+if len(all_files) == 0:
+    raise FileNotFoundError("⚠️ لم يتم العثور على أي ملفات! تأكدي من رفع الملفات ذات الرمز (5).csv في الكولاب بنفس هذا الاسم.")
+
+combined_df = pd.concat(df_list, ignore_index=True)
+combined_df = combined_df.dropna()
+
+# =====================================================================================
+# ٣. استخراج إحداثيات المواقع وتصحيح الوحدات الفيزيائية (من mm إلى cm)
+# =====================================================================================
+# قسمنا على 10 لأن الجينت يخرج المواقع بالـ mm ونحن نريدها بالـ cm لتطابق أبعاد ومحاور الرسمة
+X_cm = combined_df["X"].values / 10.0
+Y_cm = combined_df["Y"].values / 10.0
+
+N_total = len(X_cm)  # إجمالي عدد النيوترونات الناتجة التراكمية
+
+# =====================================================================================
+# ٤. حسابات التوزيع المساحي وبناء الرسم ثلاثي الأبعاد (شغلكِ الأصلي المطور)
+# =====================================================================================
+plt.rcParams.update({
+    'font.family':'sans-serif','font.sans-serif':['Arial','DejaVu Sans'],
+    'figure.facecolor':'white','axes.facecolor':'white',
+})
+
+CMAP = 'inferno'
+
+# تطبيق الـ Mask الدائري للتأكد من الجسيمات الواقعة في نطاق سقوط الحزمة
+mask = np.sqrt(X_cm**2 + Y_cm**2) <= BEAM_SPOT_CM * 1.5
+Xp, Yp = X_cm[mask], Y_cm[mask]
+
+GRID = 80
+x_lim = np.percentile(Xp, [0.5, 99.5])
+y_lim = np.percentile(Yp, [0.5, 99.5])
+
+H, xe, ye = np.histogram2d(Xp, Yp, bins=GRID, range=[x_lim, y_lim])
+H_sm = gaussian_filter(H.T, sigma=1.5)
+
+xc = 0.5 * (xe[:-1] + xe[1:])
+yc = 0.5 * (ye[:-1] + ye[1:])
+Xg, Yg = np.meshgrid(xc, yc)
+vmax = H_sm.max()
+
+fig = plt.figure(figsize=(10, 8))
+ax = fig.add_subplot(111, projection='3d')
+ax.set_facecolor('white')
+
+# رسم المجسم الخارجي ثلاثي الأبعاد لفيض الكثافة النيوترونية
+surf = ax.plot_surface(
+    Xg, Yg, H_sm,
+    cmap=CMAP, norm=Normalize(0, vmax),
+    linewidth=0, antialiased=True,
+    rcount=80, ccount=80, alpha=0.95
+)
+
+# رسم مسقط الكنتور الظلي السفلي (Contour Shadow) لإيضاح أطراف الانتشار
+offset = -vmax * 0.08
+ax.contourf(Xg, Yg, H_sm, zdir='z', offset=offset,
+            levels=25, cmap=CMAP,
+            norm=Normalize(0, vmax), alpha=0.38)
+ax.set_zlim(offset, vmax * 1.08)
+
+# تسمية المحاور العلمية الثلاثة
+ax.set_xlabel('X Position [cm]', fontsize=12, labelpad=10)
+ax.set_ylabel('Y Position [cm]', fontsize=12, labelpad=10)
+ax.set_zlabel('Neutron Counts',  fontsize=12, labelpad=8)
+
+# تحديث العنوان ليدل بوضوح على أن الحسابات تراكمية مدمجة للأوبتميزيشن
+ax.set_title(
+    r'$^{7}$Li(p,n)$^{7}$Be — 3D Beam Intensity Surface (Combined Targets)'
+    '\n'
+    rf'$E_p = {E0_MeV}\pm{dE_MeV}$ MeV  |  '
+    rf'Spot = {BEAM_SPOT_CM} cm  |  '
+    rf'$\Delta\theta = {THETA_mrad}$ mrad  |  $N_n$ = {N_total:,}',
+    fontsize=12, pad=20, color='#222222'
+)
+ax.tick_params(labelsize=9)
+ax.view_init(elev=33, azim=-52)
+
+# إضافة عمود الألوان الحراري المعتمد دولياً
+cb = fig.colorbar(surf, ax=ax, shrink=0.48, aspect=14, pad=0.05)
+cb.set_label('Neutron Intensity [counts]', fontsize=11)
+cb.ax.tick_params(labelsize=9)
+
+plt.tight_layout()
+
+# حفظ اللوحة المجسمة بامتدادين للمسودة والطباعة النهائية للرسالة
+fig.savefig('plot3_beam_spot_3d_combined.png', dpi=300, bbox_inches='tight', facecolor='white')
+fig.savefig('plot3_beam_spot_3d_combined.pdf', bbox_inches='tight', format='pdf', facecolor='white')
+
+plt.show()
+
+print("Saved Successfully → plot3_beam_spot_3d_combined.png / .pdf")
+print("Total Files Combined and Loaded:", len(all_files))
+print("Total Cumulative Neutrons:", N_total)
+
+
+#===================================================================================================================#
+#2D Gragh BEAM SPOT#
+
 import pandas as pd
 import glob
 import numpy as np
