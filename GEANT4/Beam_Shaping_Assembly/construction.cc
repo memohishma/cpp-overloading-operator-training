@@ -9,6 +9,12 @@
 #include "G4MultiFunctionalDetector.hh"
 #include "G4VPrimitiveScorer.hh"
 #include "G4PSTrackLength.hh"
+#include "G4MultiFunctionalDetector.hh"
+
+#include "G4PSDoseDeposit.hh" // لحساب الجرعة الممتصة المودعة من غاما
+#include "G4PSCellFlux.hh"    // أو لحساب الفيض (تشتت الجسيمات داخل الحجم)
+#include "G4SDParticleWithEnergyFilter.hh"
+#include "G4SDParticleFilter.hh"
 
 class MyBasicSD : public G4VSensitiveDetector {
 public:
@@ -45,7 +51,9 @@ G4VPhysicalVolume *MyDetectorConstruction::Construct()
     BF3Gas->AddElement(elB, 1); // ذرة بورون واحدة
     BF3Gas->AddElement(elF, 3); // ثلاث ذرات فلور
 
+
     // مواد الـ BSA المتبقية والمادة الجديدة للموازئ
+    G4Material *nickel = nist->FindOrBuildMaterial("G4_Ni"); 
     G4Material *lead = nist->FindOrBuildMaterial("G4_Pb");              
     G4Material *bismuth = nist->FindOrBuildMaterial("G4_Bi");          
     G4Material *MgF2 = nist->FindOrBuildMaterial("G4_MAGNESIUM_FLUORIDE");
@@ -64,6 +72,7 @@ G4VPhysicalVolume *MyDetectorConstruction::Construct()
     G4double bsaY = 25.*cm;              
     
     // السماكات المتبقية (نصف الأبعاد للجينت 4) 
+    G4double hzFastFilter = 1.0 * cm; 
     G4double hzModerator = (34.0 / 2.0) * cm; 
     G4double hzGammaFilter = 1.5*cm;     
     G4double hzCollimator = 1.5*cm;      
@@ -72,27 +81,32 @@ G4VPhysicalVolume *MyDetectorConstruction::Construct()
     // الحساب التلقائي المحدث للمواقع على محور Z بعد حذف النيكل والكادميوم
     G4double currentZ = 0.*cm;
 
-    // 1. موقع شريحة الليثيوم
+    // 1. موقع شريحة الليثيوم (Target)
     currentZ += targetZ;
     G4ThreeVector xyzTarget(0., 0., currentZ);
 
-    // 2. موقع المهدئ (يأتي مباشرة بعد الليثيوم الآن)
+    // 2. موقع المهدئ (MgF2) - يأتي مباشرة بعد الليثيوم
     currentZ += targetZ + hzModerator;
     G4ThreeVector xyzModerator(0., 0., currentZ);
 
-    // 3. موقع مصفاة غاما (البزموت)
-    currentZ += hzModerator + hzGammaFilter;
+    // 2.5 موقع مرشح النيوترونات السريعة (النيكل) - جديد
+    currentZ += hzModerator + hzFastFilter;
+    G4ThreeVector xyzFastFilter(0., 0., currentZ);
+
+    // 3. موقع مصفاة غاما (البزموت) - يتزحزح للأمام
+    currentZ += hzFastFilter + hzGammaFilter;
     G4ThreeVector xyzGammaFilter(0., 0., currentZ);
 
-    // 4. موقع الموازئ التنجستن (يأتي مباشرة بعد البزموت الآن)
+    // 4. موقع الموازئ التنجستن 
     currentZ += hzGammaFilter + hzCollimator;
     G4ThreeVector xyzCollimator(0., 0., currentZ);
 
     // 5. موقع الكاشف خلف الموازئ
     currentZ += hzCollimator + 6.*cm; 
     G4ThreeVector xyzDetector(0., 0., currentZ);
+    
 
-    // بناء حجم العالم (World)
+	// بناء حجم العالم (World)
     G4Box *solidWorld = new G4Box("solidWorld", LWorld, LWorld, LWorld);
     G4LogicalVolume *logicWorld = new G4LogicalVolume(solidWorld, vacuum, "logicWorld");
     G4VPhysicalVolume *physWorld = new G4PVPlacement(0, G4ThreeVector(0., 0., 0.), logicWorld, "physWorld", 0, false, 0, true);
@@ -109,6 +123,15 @@ G4VPhysicalVolume *MyDetectorConstruction::Construct()
     G4VisAttributes *targetVis = new G4VisAttributes(G4Colour(1.0, 0.4, 0.0, 0.5)); 
     targetVis->SetForceSolid(true);
     logicTarget->SetVisAttributes(targetVis);
+
+// --- بناء مرشح النيوترونات السريعة (Nickel Filter Box) ---
+    G4Box *solidFastFilter = new G4Box("solidFastFilter", bsaX, bsaY, hzFastFilter);
+    G4LogicalVolume *logicFastFilter = new G4LogicalVolume(solidFastFilter, nickel, "logicFastFilter");
+    new G4PVPlacement(0, xyzFastFilter, logicFastFilter, "physFastFilter", logicWorld, false, 0, true);
+
+    G4VisAttributes *niVis = new G4VisAttributes(G4Colour(0.9, 0.7, 0.2, 0.5)); // لون أصفر ذهبي
+    niVis->SetForceSolid(true);
+    logicFastFilter->SetVisAttributes(niVis);
 ////////////////////////////////////////////////////////////////////////////////////////////////////
     // المهدئ المربع (MgF2 Box)
     G4Box *solidModerator = new G4Box("solidModerator", bsaX, bsaY, hzModerator);
@@ -148,7 +171,7 @@ G4VPhysicalVolume *MyDetectorConstruction::Construct()
     logicCollimator->SetVisAttributes(collVis);
 
     // العاكس المربع الخارجي (Lead Reflector Box) - تم تحديث حساب الطول الإجمالي
-    G4double totalBsaLength = hzModerator + hzGammaFilter + hzCollimator;
+    G4double totalBsaLength = hzModerator + hzFastFilter + hzGammaFilter + hzCollimator;
     G4ThreeVector xyzReflector(0., 0., xyzModerator.z() - hzModerator + totalBsaLength);
 
     G4VSolid *solidOuterReflector = new G4Box("solidOuterReflector", bsaX + reflectorThickness, bsaY + reflectorThickness, totalBsaLength);
@@ -179,6 +202,7 @@ G4VPhysicalVolume *MyDetectorConstruction::Construct()
 
     // تعريف الـ Region للـ BSA (تحديث المكونات بعد الحذف)
     G4Region* bsaRegion = new G4Region("BSARegion");
+    bsaRegion->AddRootLogicalVolume(logicFastFilter);
     bsaRegion->AddRootLogicalVolume(logicModerator);
     bsaRegion->AddRootLogicalVolume(logicGammaFilter);
     
@@ -199,9 +223,29 @@ void MyDetectorConstruction::ConstructSDandField()
 
     // ربط الكواشف مع المكونات الحالية فقط (تمت إزالة النيكل والكادميوم لحمايته من الـ Crash)
     if(logicTarget)        logicTarget->SetSensitiveDetector(bsaSensitiveDetector);
+    if(logicFastFilter)    logicFastFilter->SetSensitiveDetector(bsaSensitiveDetector);
     if(logicModerator)     logicModerator->SetSensitiveDetector(bsaSensitiveDetector);
     if(logicGammaFilter)   logicGammaFilter->SetSensitiveDetector(bsaSensitiveDetector);
     if(logicCollimator)    logicCollimator->SetSensitiveDetector(bsaSensitiveDetector);
     if(logicReflector)     logicReflector->SetSensitiveDetector(bsaSensitiveDetector);
     if(logicDetector)      logicDetector->SetSensitiveDetector(bsaSensitiveDetector);
+
+// إنشاء كاشف متعدد الوظائف خاص بجرعة غاما والنيوترونات في الكاشف
+    G4MultiFunctionalDetector* detectorScorer = new G4MultiFunctionalDetector("DetectorScorer");
+    sdMan->AddNewDetector(detectorScorer);
+
+    // إضافة مسجل لجرعة غاما الممتصة (Dose Deposit)
+    G4VPrimitiveScorer* gammaDose = new G4PSDoseDeposit("GammaDose");
+    
+   // فلتر لاقتناص غاما فقط بناءً على نوع الجسيم
+    G4SDParticleFilter* gammaFilter = new G4SDParticleFilter("gammaFilter");
+    gammaFilter->add("gamma"); // إضافة أشعة غاما للفلتر
+    gammaDose->SetFilter(gammaFilter);
+    // دمج الـ Scorer مع الكاشف المتعدد الوظائف
+    detectorScorer->RegisterPrimitive(gammaDose);
+
+    // ربط الـ Scorer بالحجم المنطقي لكاشف الـ BF3
+    if(logicDetector) logicDetector->SetSensitiveDetector(detectorScorer);
+
+
 }
