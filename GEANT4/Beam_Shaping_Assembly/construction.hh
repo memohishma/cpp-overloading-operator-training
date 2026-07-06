@@ -25,10 +25,9 @@ private:
     G4MultiFunctionalDetector* bsaScorer;
     
     G4LogicalVolume *logicTarget;
-    G4LogicalVolume *logicNickel;
+    G4LogicalVolume *logicFastFilter;
     G4LogicalVolume *logicModerator;
     G4LogicalVolume *logicGammaFilter;
-    G4LogicalVolume *logicThermalFilter;
     G4LogicalVolume *logicCollimator;
     G4LogicalVolume *logicReflector;
     G4LogicalVolume *logicDetector;
