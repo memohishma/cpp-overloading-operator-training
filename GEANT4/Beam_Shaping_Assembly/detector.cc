@@ -57,16 +57,15 @@ if (particleName == "neutron") {
     // الوصول إلى الـ RunAction الحالي لتعديل المتغيرات فيه
     MyRunAction* runAction = (MyRunAction*)G4RunManager::GetRunManager()->GetUserRunAction();
     
-    if (runAction) {
+   /* if (runAction) {
         if (volName == "physTarget") runAction->nTarget++;
-        else if (volName == "physNickel") runAction->nNickel++;
+        else if (volName == "physNickel") runAction->nFastFilter++;
         else if (volName == "physModerator") runAction->nModerator++;
         else if (volName == "physGammaFilter") runAction->nGamma++;
-        else if (volName == "physThermalFilter") runAction->nThermal++;
         else if (volName == "physCollimator") runAction->nCollimator++;
         else if (volName == "physReflector") runAction->nReflector++;
         else if (volName == "physDetector") runAction->nDetector++;
-    }
+    }*/
 }
 /////////////////////////////////////////////
 /////////////////////////////////////////////
