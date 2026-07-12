@@ -26,7 +26,7 @@ public:
 };
 
 MyDetectorConstruction::MyDetectorConstruction()
-: logicTarget(nullptr), logicModerator(nullptr), logicGammaFilter(nullptr), 
+: logicTarget(nullptr), logicModerator(nullptr),logicFastFilter(nullptr), logicGammaFilter(nullptr), 
   logicCollimator(nullptr), logicReflector(nullptr), logicDetector(nullptr)
 {
     // ملاحظة: تم إزالة مؤشرات logicNickel و logicThermalFilter من هنا
@@ -72,11 +72,11 @@ G4VPhysicalVolume *MyDetectorConstruction::Construct()
     G4double bsaY = 25.*cm;              
     
     // السماكات المتبقية (نصف الأبعاد للجينت 4) 
-    G4double hzFastFilter = 1.0 * cm; 
-    G4double hzModerator = (34.0 / 2.0) * cm; 
-    G4double hzGammaFilter = 1.5*cm;     
-    G4double hzCollimator = 1.5*cm;      
-    G4double reflectorThickness = 20.*cm;
+    G4double hzFastFilter = (0.6 / 2.0)* cm; 
+    G4double hzModerator = (30.0 / 2.0) * cm; 
+    G4double hzGammaFilter = (3.0 / 2.0)*cm;     
+    G4double hzCollimator = (4.0 / 2.0)*cm;      
+    G4double reflectorThickness = 25.*cm;
 
     // الحساب التلقائي المحدث للمواقع على محور Z بعد حذف النيكل والكادميوم
     G4double currentZ = 0.*cm;
@@ -102,9 +102,9 @@ G4VPhysicalVolume *MyDetectorConstruction::Construct()
     G4ThreeVector xyzCollimator(0., 0., currentZ);
 
     // 5. موقع الكاشف خلف الموازئ
-    currentZ += hzCollimator + 6.*cm; 
+    currentZ += hzCollimator + 14.*cm; 
     G4ThreeVector xyzDetector(0., 0., currentZ);
-    
+  
 
 	// بناء حجم العالم (World)
     G4Box *solidWorld = new G4Box("solidWorld", LWorld, LWorld, LWorld);
@@ -125,7 +125,7 @@ G4VPhysicalVolume *MyDetectorConstruction::Construct()
     logicTarget->SetVisAttributes(targetVis);
 
 // --- بناء مرشح النيوترونات السريعة (Nickel Filter Box) ---
-    G4Box *solidFastFilter = new G4Box("solidFastFilter", bsaX, bsaY, hzFastFilter);
+   G4Box *solidFastFilter = new G4Box("solidFastFilter", bsaX, bsaY, hzFastFilter);
     G4LogicalVolume *logicFastFilter = new G4LogicalVolume(solidFastFilter, nickel, "logicFastFilter");
     new G4PVPlacement(0, xyzFastFilter, logicFastFilter, "physFastFilter", logicWorld, false, 0, true);
 
@@ -156,9 +156,9 @@ G4VPhysicalVolume *MyDetectorConstruction::Construct()
     G4Box *solidCollimatorOuterBox = new G4Box("solidCollimatorOuterBox", bsaX, bsaY, hzCollimator);
     
     G4double Rmin1_tunnel = 0.*mm;     
-    G4double Rmax1_tunnel = 9.0*cm;    
+    G4double Rmax1_tunnel = 18.0*cm;    
     G4double Rmin2_tunnel = 0.*mm;     
-    G4double Rmax2_tunnel = 6.0*cm;    
+    G4double Rmax2_tunnel = 14.0*cm;    
     
     G4Cons *solidCollimatorInnerCone = new G4Cons("solidCollimatorInnerCone", Rmin1_tunnel, Rmax1_tunnel, Rmin2_tunnel, Rmax2_tunnel, hzCollimator + 1.*mm, 0.*deg, 360.*deg);
     
@@ -186,7 +186,7 @@ G4VPhysicalVolume *MyDetectorConstruction::Construct()
     logicReflector->SetVisAttributes(refVis);
 
     // بناء كاشف الـ BF3 الأسطواني
-    G4Tubs *solidBF3Detector = new G4Tubs("solidBF3Detector", 0.*mm, 6*cm, 6.*cm, 0.*deg, 360.*deg);
+    G4Tubs *solidBF3Detector = new G4Tubs("solidBF3Detector", 0.*mm, 14*cm, 14.*cm, 0.*deg, 360.*deg);
     logicDetector = new G4LogicalVolume(solidBF3Detector, BF3Gas, "LogicDetector");
     new G4PVPlacement(0, xyzDetector, logicDetector, "physDetector", logicWorld, false, 0, true);
 
@@ -228,7 +228,7 @@ void MyDetectorConstruction::ConstructSDandField()
     if(logicGammaFilter)   logicGammaFilter->SetSensitiveDetector(bsaSensitiveDetector);
     if(logicCollimator)    logicCollimator->SetSensitiveDetector(bsaSensitiveDetector);
     if(logicReflector)     logicReflector->SetSensitiveDetector(bsaSensitiveDetector);
-    if(logicDetector)      logicDetector->SetSensitiveDetector(bsaSensitiveDetector);
+    //if(logicDetector)      logicDetector->SetSensitiveDetector(bsaSensitiveDetector);
 
 // إنشاء كاشف متعدد الوظائف خاص بجرعة غاما والنيوترونات في الكاشف
     G4MultiFunctionalDetector* detectorScorer = new G4MultiFunctionalDetector("DetectorScorer");
