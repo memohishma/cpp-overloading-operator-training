@@ -1,5 +1,5 @@
 #ifndef PHYSICS_HH
-#define PHYSICS_HH 1
+#define PHYSICS_HH 
 
 #include "G4VModularPhysicsList.hh"
 #include "globals.hh"
