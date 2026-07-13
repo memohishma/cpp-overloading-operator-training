@@ -1,5 +1,5 @@
 #ifndef NeutronHPphysics_h
-#define NeutronHPphysics_h 1
+#define NeutronHPphysics_h 
 
 #include "G4VPhysicsConstructor.hh"
 #include "globals.hh"
