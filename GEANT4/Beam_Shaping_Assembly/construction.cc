@@ -10,6 +10,12 @@
 #include "G4VPrimitiveScorer.hh"
 #include "G4PSTrackLength.hh"
 #include "G4MultiFunctionalDetector.hh"
+#include "G4RunManager.hh"
+
+#include "G4GeometryManager.hh"
+#include "G4PhysicalVolumeStore.hh"
+#include "G4LogicalVolumeStore.hh"
+#include "G4SolidStore.hh"
 
 #include "G4PSDoseDeposit.hh" // لحساب الجرعة الممتصة المودعة من غاما
 #include "G4PSCellFlux.hh"    // أو لحساب الفيض (تشتت الجسيمات داخل الحجم)
@@ -37,6 +43,8 @@ MyDetectorConstruction::~MyDetectorConstruction()
 
 G4VPhysicalVolume *MyDetectorConstruction::Construct()
 {
+
+   
     G4NistManager *nist = G4NistManager::Instance();
 
     G4Material* vacuum = nist->FindOrBuildMaterial("G4_Galactic");
@@ -72,9 +80,9 @@ G4VPhysicalVolume *MyDetectorConstruction::Construct()
     G4double bsaY = 25.*cm;              
     
     // السماكات المتبقية (نصف الأبعاد للجينت 4) 
-    G4double hzFastFilter = (0.6 / 2.0)* cm; 
-    G4double hzModerator = (30.0 / 2.0) * cm; 
-    G4double hzGammaFilter = (3.0 / 2.0)*cm;     
+    G4double hzFastFilter = (0.5 / 2.0)* cm; 
+    G4double hzModerator = (34.0 / 2.0) * cm; 
+    G4double hzGammaFilter = (2.5 / 2.0)*cm;     
     G4double hzCollimator = (4.0 / 2.0)*cm;      
     G4double reflectorThickness = 25.*cm;
 
@@ -246,6 +254,7 @@ void MyDetectorConstruction::ConstructSDandField()
 
     // ربط الـ Scorer بالحجم المنطقي لكاشف الـ BF3
     if(logicDetector) logicDetector->SetSensitiveDetector(detectorScorer);
-
-
 }
+
+
+
