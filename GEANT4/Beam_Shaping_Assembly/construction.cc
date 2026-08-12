@@ -68,7 +68,7 @@ G4VPhysicalVolume *MyDetectorConstruction::Construct()
     G4Material *tungsten = nist->FindOrBuildMaterial("G4_W"); // إضافة التنجستن للموازئ
 
     // حجم العالم (World)
-    G4double LWorld = 60*cm; 
+    G4double LWorld = 67*cm; 
     
     // أبعاد الهدف الأصلي
     G4double targetX = 6.*cm;     
@@ -80,11 +80,13 @@ G4VPhysicalVolume *MyDetectorConstruction::Construct()
     G4double bsaY = 25.*cm;              
     
     // السماكات المتبقية (نصف الأبعاد للجينت 4) 
-    G4double hzFastFilter = (0.5 / 2.0)* cm; 
-    G4double hzModerator = (34.0 / 2.0) * cm; 
-    G4double hzGammaFilter = (2.5 / 2.0)*cm;     
-    G4double hzCollimator = (4.0 / 2.0)*cm;      
+   
+    G4double hzModerator = (33.0 / 2.0) * cm; 
     G4double reflectorThickness = 25.*cm;
+    G4double hzFastFilter = (0.5 / 2.0)* cm;
+    G4double hzGammaFilter = (3.0 / 2.0)*cm;     
+    G4double hzCollimator = (3 / 2.0)*cm;      
+
 
     // الحساب التلقائي المحدث للمواقع على محور Z بعد حذف النيكل والكادميوم
     G4double currentZ = 0.*cm;
@@ -255,6 +257,11 @@ void MyDetectorConstruction::ConstructSDandField()
     // ربط الـ Scorer بالحجم المنطقي لكاشف الـ BF3
     if(logicDetector) logicDetector->SetSensitiveDetector(detectorScorer);
 }
+
+
+
+
+
 
 
 
