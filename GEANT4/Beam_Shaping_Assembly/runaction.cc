@@ -3,41 +3,64 @@
 #include <vector>
 #include "G4AccumulableManager.hh"
 #include "G4Run.hh"
-
 #include "G4ScoringManager.hh"
 #include "G4SDManager.hh"
 #include "G4THitsMap.hh"
 #include "G4Event.hh"
+#include "G4AnalysisManager.hh"
 
 MyRunAction::MyRunAction()
 {
-    //=========================================================================================================================
-    // Constructor
-    //=========================================================================================================================
     G4AnalysisManager* man = G4AnalysisManager::Instance();
+    man->SetDefaultFileType("csv"); // لضمان الإخراج بتنسيق CSV
 
-    // Tally neutrons produced in Li target
+    // =========================================================================
+    // Ntuple 0: Target - النيوترونات عند الهدف (كما هي)
+    // =========================================================================
     man->CreateNtuple("Target", "Target"); 
     man->CreateNtupleIColumn("fEvent"); 
-    man->CreateNtupleDColumn("PreStepEnergy (keV)"); 
-    man->CreateNtupleDColumn("PostStepEnergy (keV)"); 
-    man->CreateNtupleDColumn("fX (m)");
-    man->CreateNtupleDColumn("fY (m)");
-    man->CreateNtupleDColumn("fZ (m)");
+    man->CreateNtupleDColumn("PreStepEnergy_keV"); 
+    man->CreateNtupleDColumn("PostStepEnergy_keV"); 
+    man->CreateNtupleDColumn("fX_m");
+    man->CreateNtupleDColumn("fY_m");
+    man->CreateNtupleDColumn("fZ_m");
     man->FinishNtuple(0); 
 
-    // Tally neutrons in the detector
-    man->CreateNtuple("Detector", "Detector"); 
-    man->CreateNtupleIColumn("fEvent"); 
-    man->CreateNtupleDColumn("PreStepEnergy (keV)");
-    man->CreateNtupleDColumn("PostStepEnergy (keV)");
-    man->CreateNtupleDColumn("fX (m)");
-    man->CreateNtupleDColumn("fY (m)");
-    man->CreateNtupleDColumn("fZ (m)");
+    // =========================================================================
+    // Ntuple 1: BSA_Output_Neutrons - البيانات الكاملة لنيوترونات المخرج ⭐
+    // (تغطي: Neutron Spectrum, Angular Distribution, Spatial Profile)
+    // =========================================================================
+    man->CreateNtuple("Detector", "BSA_Output_Neutrons"); 
+    man->CreateNtupleIColumn("fEvent");              // Column 0
+    man->CreateNtupleDColumn("Energy_eV");           // Column 1 (Fig 1: Spectrum)
+    man->CreateNtupleDColumn("CosTheta");            // Column 2 (Fig 2: Directionality J/Phi)
+    man->CreateNtupleDColumn("fX_cm");               // Column 3 (Fig 4: Spatial Profile X)
+    man->CreateNtupleDColumn("fY_cm");               // Column 4 (Fig 4: Spatial Profile Y)
+    man->CreateNtupleDColumn("R_cm");                // Column 5 (Fig 4: Radial Profile R)
+    man->CreateNtupleDColumn("Weight");              // Column 6 (Flux Weight 1/cosTheta)
     man->FinishNtuple(1); 
-    
-    // تسجيل العدادات داخل مدير الـ Accumulables
-    // تسجيل العدادات داخل مدير الـ Accumulables بالطريقة الحديثة
+
+    // =========================================================================
+    // Ntuple 2: BSA_Output_Gamma - طيف أشعة غاما عند المخرج ⭐
+    // (تغطي Fig 3: Gamma Energy Spectrum)
+    // =========================================================================
+    man->CreateNtuple("GammaOutput", "BSA_Output_Gamma");
+    man->CreateNtupleIColumn("fEvent");              // Column 0
+    man->CreateNtupleDColumn("Energy_MeV");          // Column 1 (Gamma Spectrum in MeV)
+    man->CreateNtupleDColumn("fX_cm");               // Column 2
+    man->CreateNtupleDColumn("fY_cm");               // Column 3
+    man->CreateNtupleDColumn("Weight");              // Column 4
+    man->FinishNtuple(2);
+
+    // =========================================================================
+    // Ntuple 3: Initial_Target_Spectrum - الطيف الأولي عند الخروج من الهدف
+    // =========================================================================
+    man->CreateNtuple("TargetInterface", "Target_Moderator_Interface");
+    man->CreateNtupleIColumn("fEvent");
+    man->CreateNtupleDColumn("Energy_eV");
+    man->FinishNtuple(3);
+
+    // تسجيل العدادات المعتادة دون تغيير
     G4AccumulableManager* accumulableManager = G4AccumulableManager::Instance();
     accumulableManager->Register(nTarget);
     accumulableManager->Register(nModerator);
@@ -66,8 +89,6 @@ void MyRunAction::BeginOfRunAction(const G4Run*)
     G4AnalysisManager* man = G4AnalysisManager::Instance();
     man->OpenFile("output.csv");
 }
-
-
 
 void MyRunAction::EndOfRunAction(const G4Run* aRun)
 {
@@ -134,7 +155,7 @@ void MyRunAction::EndOfRunAction(const G4Run* aRun)
         G4cout << "=====================================================" << G4endl;
 
         // 5. حساب الـ Real Flux الفعلي لتيار 20mA
-        G4double beamCurrent = 20.0e-3; 
+        G4double beamCurrent = 30.0e-3; 
         G4double protonCharge = 1.602176634e-19; 
         G4double protonsPerSecond = beamCurrent / protonCharge; 
 
@@ -145,7 +166,7 @@ void MyRunAction::EndOfRunAction(const G4Run* aRun)
 
         G4cout << G4endl;
         G4cout << "=====================================================" << G4endl;
-        G4cout << "       REAL ABSOLUTE FLUX AT 20 mA BEAM CURRENT      " << G4endl;
+        G4cout << "       REAL ABSOLUTE FLUX AT 30 mA BEAM CURRENT      " << G4endl;
         G4cout << "=====================================================" << G4endl;
         G4cout << "Real Thermal Flux            : " << realFluxThermal    << " n/cm^2.s" << G4endl;
         G4cout << "Real Epithermal Flux (BNCT)  : " << realFluxEpithermal << " n/cm^2.s" << G4endl;
@@ -191,4 +212,5 @@ void MyRunAction::EndOfRunAction(const G4Run* aRun)
         G4cout << "=====================================================" << G4endl;
     }
 }
+
 
