@@ -3,7 +3,7 @@
 # ============================================================
 #  Merges existing output_nt_Detector_t*.csv files in the working
 #  directory and plots the 2D neutron beam spot profile (X-Y position
-#  density at the detector) as a smooth heatmap with 1/2/3-sigma
+#  density at the detector) as a smooth heatmap with 1/2/3-sigm
 #  reference circles and a centroid marker.
 # ============================================================
 
@@ -18,7 +18,7 @@ from scipy.stats import gaussian_kde
 
 # ============================================================
 #  CONFIG — edit these to match your simulation
-# ============================================================
+# ===========================================================
 EP_MEAN_MEV = 2.2  # proton beam energy (MeV)
 EP_SPREAD_MEV = 0.2  # proton beam energy spread, +/- (MeV)
 DTHETA_MRAD = 10.0  # angular spread shown in the subtitle (mrad)
@@ -26,7 +26,7 @@ TARGET_LABEL = "Detector"  # e.g. "Target", "Detector", "Combined Targets"
 
 # Physical target parameters for the plot subtitle
 TARGET_MATERIAL = "Li"  # e.g. "Li", "LiF", or None
-TARGET_THICKNESS_UM = 60  # thickness in micrometers, or None
+TARGET_THICKNESS_UM = 160  # thickness in micrometers, or None
 
 # Column names for the transverse position (auto-detected if None).
 X_COLUMN = None
@@ -138,7 +138,7 @@ def detect_unit_from_column_name(col_name, default):
 
 
 # ---- 3. Load + merge local CSV files ------------------------------------
-def load_local_csvs(pattern="output_nt_Detector_t*.csv"):
+def load_local_csvs(pattern="output_nt_Detector_t* (11).csv"):
   file_list = sorted(glob.glob(pattern))
   if not file_list:
     raise FileNotFoundError(
@@ -294,11 +294,10 @@ def plot_beam_spot(
 #  EXECUTION
 # ============================================================
 if __name__ == "__main__":
-  merged = load_local_csvs("output_nt_Detector_t*.csv")
+  merged = load_local_csvs("output_nt_Detector_t* (11).csv")
 
   x_col, y_col = find_pos_columns(merged, X_COLUMN, Y_COLUMN)
   print(f"\nUsing position columns: X='{x_col}', Y='{y_col}'")
-
   x_vals = merged[x_col].astype(float).values
   y_vals = merged[y_col].astype(float).values
 
