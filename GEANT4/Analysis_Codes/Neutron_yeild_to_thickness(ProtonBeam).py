@@ -228,8 +228,8 @@ mpl.rcParams.update({
 # ---------------------------------------------------------------------
 fig, ax = plt.subplots(figsize=(7.5, 5.5), dpi=300)
 
-# Shaded region for optimal thickness range (80-100 um)
-ax.axvspan(80, 100, color="#fff9c4", alpha=0.8, zorder=0, label=r"Optimal Thickness Range ($80\text{-}100\ \mu\mathrm{m}$)")
+# Shaded region for optimal thickness range (80-100 um) - Uniform font size text
+ax.axvspan(80, 100, color="#fff9c4", alpha=0.8, zorder=0, label="Optimal Thickness Range (80-100 \u03bcm)")
 
 # Line 1: PN (Square markers)
 ax.plot(Thickness, PN, marker="s", markersize=6, linewidth=1.8,
