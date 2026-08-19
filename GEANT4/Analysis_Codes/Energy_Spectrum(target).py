@@ -9,7 +9,7 @@
 import glob
 import io
 import re
-import matplotlib.pyplot as plt
+import matplotlib.pyplot as plte
 import numpy as np
 import pandas as pd
 from scipy.stats import gaussian_kde
@@ -34,7 +34,7 @@ TARGET_LABEL = "Target"  # e.g. "Target" or "Detector"
 
 # Physical target parameters for the plot subtitle
 TARGET_MATERIAL = "Li"  # e.g. "Li", "LiF", or None
-TARGET_THICKNESS_UM = 60  # thickness in micrometers, or None
+TARGET_THICKNESS_UM = 160  # thickness in micrometers, or None
 OUTPUT_PNG = "neutron_spectrum_keV.png"
 # ============================================================
 
@@ -130,7 +130,7 @@ def detect_unit_from_column_name(col_name):
   return None
 
 
-def load_local_csvs(pattern="output_nt_Detector_t*.csv"):
+def load_local_csvs(pattern="output_nt_Detector_t* (11).csv"):
   """Finds and merges all matching CSV files from the local directory."""
   file_list = sorted(glob.glob(pattern))
   if not file_list:
@@ -277,7 +277,7 @@ def plot_spectrum(
 # ============================================================
 if __name__ == "__main__":
   # Loads files matching the pattern directly from the working directory
-  merged = load_local_csvs("output_nt_Detector_t*.csv")
+  merged = load_local_csvs("output_nt_Detector_t* (11).csv")
 
   energy_col = find_energy_column(merged, ENERGY_COLUMN)
   print(f"\nUsing energy column: '{energy_col}'")
