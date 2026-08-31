@@ -73,7 +73,7 @@ G4VPhysicalVolume *MyDetectorConstruction::Construct()
     // أبعاد الهدف الأصلي
     G4double targetX = 6.*cm;     
     G4double targetY = 6.*cm;     
-    G4double targetZ = 70.*um;    
+    G4double targetZ = (80 / 2.0) *um;    
 
     // أبعاد الـ BSA
     G4double bsaX = 25.*cm;              
@@ -81,11 +81,11 @@ G4VPhysicalVolume *MyDetectorConstruction::Construct()
     
     // السماكات المتبقية (نصف الأبعاد للجينت 4) 
    
-    G4double hzModerator = (33.0 / 2.0) * cm; 
+    G4double hzModerator = (32.0 / 2.0) * cm; 
     G4double reflectorThickness = 25.*cm;
-    G4double hzFastFilter = (0.5 / 2.0)* cm;
-    G4double hzGammaFilter = (3.0 / 2.0)*cm;     
-    G4double hzCollimator = (3 / 2.0)*cm;      
+    G4double hzFastFilter = (0.7 / 2.0)* cm;
+    G4double hzGammaFilter = (2.5/ 2.0)*cm;     
+    G4double hzCollimator = (4 / 2.0)*cm;      
 
 
     // الحساب التلقائي المحدث للمواقع على محور Z بعد حذف النيكل والكادميوم
@@ -257,6 +257,7 @@ void MyDetectorConstruction::ConstructSDandField()
     // ربط الـ Scorer بالحجم المنطقي لكاشف الـ BF3
     if(logicDetector) logicDetector->SetSensitiveDetector(detectorScorer);
 }
+
 
 
 
