@@ -174,15 +174,15 @@ void MyRunAction::EndOfRunAction(const G4Run* aRun)
         G4cout << "-----------------------------------------------------" << G4endl;
         G4cout << "Real Gamma Contamination Flux: " << realFluxGamma      << " photons/cm^2.s" << G4endl;
         G4cout << "=====================================================" << G4endl;
-
-        // 6. 🌟 لوحة معايير الجودة المصححة للـ IAEA 🌟
-        G4double ratioEpithermalFast    = (realFluxFast > 0.0) ? (realFluxEpithermal / realFluxFast) : 0.0;
+// 6. 🌟 لوحة معايير الجودة المصححة للـ IAEA 🌟
         
-        // النسبة المصححة فيزيائياً: نريد التدفق الحراري مقسوماً على فوق الحراري (Target < 0.05)
+        // النسبة الأولى: الفيض فوق الحراري مقسوماً على الفيض السريع (لدينا كمتغير ratioEpithermalFast)
+        G4double ratioEpithermalFast = (realFluxFast > 0.0) ? (realFluxEpithermal / realFluxFast) : 0.0;
+        
+        // 🌟 [التعديل هنا]: تصحيح المعادلة لتكون الفيض الحراري مقسوماً على الفوق حراري (Target < 0.05)
         G4double ratioThermalEpithermal = (realFluxEpithermal > 0.0) ? (realFluxThermal / realFluxEpithermal) : 0.0;
         
-        // 🌟 [التعديل الجديد]: حساب الجرعات الحقيقية الدقيقة بناءً على قيم كيرما التراكمية الصافية
-        // نقوم بقسمة الجرعة المتراكمة الإجمالية (الموزونة بالوزن وطاقة الجسيم) على إجمالي عدد النيوترونات فوق الحرارية المكتشفة
+        // حساب الجرعات الحقيقية الدقيقة بناءً على قيم كيرما التراكمية الصافية
         G4double totalRealEpithermalCount = (G4double)masterEpithermalCount;
 
         G4double doseFastPerEpithermal  = (totalRealEpithermalCount > 0.0) ? (dFastAccumulated.GetValue() / totalRealEpithermalCount) : 0.0; 
@@ -195,22 +195,27 @@ void MyRunAction::EndOfRunAction(const G4Run* aRun)
 
         G4cout << G4endl;
         G4cout << "=====================================================" << G4endl;
-        G4cout << "     IAEA BNCT BEAM QUALITY RECOMMENDATIONS METRIC   " << G4endl;
+        G4cout << "       IAEA BNCT BEAM QUALITY RECOMMENDATIONS METRIC   " << G4endl;
         G4cout << "=====================================================" << G4endl;
         G4cout << std::defaultfloat; 
         
-        G4cout << "1. Epithermal Flux (IAEA Target: > 1e9 n/cm^2.s) -> Value: " << realFluxEpithermal << G4endl;
-        G4cout << "2. Phi_epithermal / Phi_Fast     (IAEA Target: > 20)  -> Value: " << ratioEpithermalFast << G4endl; // تم تعديل المسمى النصي ليطابق المتغير بدقة
-        G4cout << "3. Phi_thermal / Phi_epithermal  (IAEA Target: < 0.05)-> Value: " << ratioThermalEpithermal << G4endl;
+        G4cout << "1. Epithermal Flux (IAEA Target: > 5 e+8 n/cm^2.s) -> Value: " << realFluxEpithermal << G4endl;
+        
+        // 🌟 [تصحيح مسمى وطباعة السطر الثاني]: يعرض نسبة (فوق الحراري / السريع)
+        G4cout << "2. Phi_epithermal / Phi_fast     (IAEA Target: Recommended)-> Value: " << ratioEpithermalFast << G4endl; 
+        
+        // 🌟 [تصحيح مسمى وطباعة السطر الثالث]: يعرض النسبة الحرارية مطابقة للمعيار (< 0.05)
+        G4cout << "3. Phi_thermal / Phi_epithermal  (IAEA Target: < 0.05)  -> Value: " << ratioThermalEpithermal << G4endl;
         
         G4cout << std::scientific;
-        G4cout << "4. D_fast / Phi_epithermal  (IAEA Target: < 2e-13)   -> Value: " << doseFastPerEpithermal << " Gy.cm^2" << G4endl;
-        G4cout << "5. D_gamma / Phi_epithermal (IAEA Target: < 2e-13)   -> Value: " << doseGammaPerEpithermal << " Gy.cm^2" << G4endl;
+        G4cout << "4. D_fast / Phi_epithermal  (IAEA Target: < 7e-13)    -> Value: " << doseFastPerEpithermal << " Gy.cm^2" << G4endl;
+        G4cout << "5. D_gamma / Phi_epithermal (IAEA Target: < 2e-13)    -> Value: " << doseGammaPerEpithermal << " Gy.cm^2" << G4endl;
         
         G4cout << std::defaultfloat;
         G4cout << "6. Beam Directionality (J / Phi) (IAEA Target: > 0.7)-> Value: " << currentToFluxRatio << G4endl;
         G4cout << "=====================================================" << G4endl;
     }
 }
+
 
 
