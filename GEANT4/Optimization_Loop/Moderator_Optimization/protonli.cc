@@ -34,7 +34,7 @@ int main(int argc, char** argv)
     UImanager->ApplyCommand("/process/had/particle_hp/do_not_adjust_final_state true");
 
     // 2. أمر قراءة وتنفيذ ملف الماكرو run.mac تلقائياً
-    G4String command = "/control/execute test_sweep.mac";
+    G4String command = "/control/execute run_sweep.mac";
     //UImanager->ApplyCommand(command);
     
     
