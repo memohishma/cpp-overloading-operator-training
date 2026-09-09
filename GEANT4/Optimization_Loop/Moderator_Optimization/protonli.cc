@@ -1,14 +1,14 @@
 //WITHOUT VISIULAIZATION
 
 #include "protonli.hh"
-#include "G4VisExecutive.hh" // تم إضافتها لضمان التوافق إذا تم تفعيل الـ Vis لاحقاً
+#include "G4VisExecutive.hh" 
 #include "G4ScoringManager.hh"
 
 int main(int argc, char** argv)
 {
     #ifdef G4MULTITHREADED // run GEANT4 in multithreaded mode if available
         G4MTRunManager* runManager = new G4MTRunManager();
-        // NumThreads يجب أن تكون معرفة في protonli.hh، يمكنكِ وضع رقم ثابت مثل 4 أو 8 هنا إذا حدث خطأ
+      
         runManager->SetNumberOfThreads(NumThreads); 
     #else
         G4RunManager *runManager = new G4RunManager();
@@ -40,10 +40,10 @@ int main(int argc, char** argv)
     
     G4int status = UImanager->ApplyCommand(command);
 
-G4cout << "\n====================================\n";
-G4cout << "Macro execution status = "
+     G4cout << "\n====================================\n";
+     G4cout << "Macro execution status = "
        << status << "\n";
-G4cout << "====================================\n"
+     G4cout << "====================================\n"
        << G4endl;
 
     // ====================================================================================
