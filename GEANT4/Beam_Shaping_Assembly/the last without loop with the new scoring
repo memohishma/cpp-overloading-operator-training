@@ -1,0 +1,762 @@
+#include "construction.hh"
+#include "G4PVPlacement.hh"  
+#include "G4SubtractionSolid.hh" 
+#include "G4Cons.hh"             
+#include "G4Tubs.hh"             
+#include "G4VisAttributes.hh"    
+#include "G4Colour.hh"           
+#include "G4SDManager.hh" 
+#include "G4UserLimits.hh"
+#include "G4MultiFunctionalDetector.hh"
+#include "G4VPrimitiveScorer.hh"
+#include "G4RunManager.hh"
+#include "G4PSDoseDeposit.hh" 
+#include "G4SDParticleFilter.hh"
+#include "G4NistManager.hh"
+#include "G4Box.hh"
+#include "G4Isotope.hh"
+#include "G4Element.hh"
+#include "G4Material.hh"
+
+MyDetectorConstruction::MyDetectorConstruction()
+: logicTarget(nullptr), logicModerator(nullptr), logicFastFilter(nullptr), logicGammaFilter(nullptr),  
+  logicCollimator(nullptr), logicReflector(nullptr), logicDetector(nullptr)
+{}
+
+MyDetectorConstruction::~MyDetectorConstruction()
+{}
+
+G4VPhysicalVolume *MyDetectorConstruction::Construct()
+{
+    G4NistManager *nist = G4NistManager::Instance();
+
+    G4Material* vacuum = nist->FindOrBuildMaterial("G4_Galactic");
+    
+    // --- 1. إصلاح مادة الهدف لتكون ^7Li النقي علمياً بدلاً من G4_Li الطبيعي ---
+    G4Isotope* Li7 = new G4Isotope("Li7", 3, 7, 7.016*g/mole);
+    G4Element* elLi7 = new G4Element("Lithium-7", "Li7", 1);
+    elLi7->AddIsotope(Li7, 1.0);
+    
+    G4double liDensity = 0.534 * g/cm3; 
+    G4Material* targetLi7 = new G4Material("Target_Li7", liDensity, 1);
+    targetLi7->AddElement(elLi7, 1);
+
+    // --- تعريف غاز BF3 يدويًا ---
+    G4Element* elB = nist->FindOrBuildElement("B");
+    G4Element* elF = nist->FindOrBuildElement("F");
+    G4Material* BF3Gas = new G4Material("BF3Gas", 0.00276*g/cm3, 2);
+    BF3Gas->AddElement(elB, 1); 
+    BF3Gas->AddElement(elF, 3); 
+
+    // مواد الـ BSA والمواصفات
+    G4Material *nickel = nist->FindOrBuildMaterial("G4_Ni");  
+    G4Material *lead = nist->FindOrBuildMaterial("G4_Pb");                 
+    G4Material *bismuth = nist->FindOrBuildMaterial("G4_Bi");             
+    G4Material *MgF2 = nist->FindOrBuildMaterial("G4_MAGNESIUM_FLUORIDE");
+    G4Material *tungsten = nist->FindOrBuildMaterial("G4_W"); 
+
+    // حجم العالم (World)
+    G4double LWorld = 80*cm;  
+    
+    // أبعاد الهدف (مربع 6×6 سم، أي نصف العرض 3 سم، وسمك 80 ميكرومتر)
+    G4double targetX = 3.*cm;      
+    G4double targetY = 3.*cm;      
+    G4double targetZ = (80 / 2.0) *um;    
+
+    // أبعاد الـ BSA 
+    G4double bsaX = 25.*cm;               
+    G4double bsaY = 25.*cm;               
+    
+    G4double hzModerator = (20.0 / 2.0) * cm;  
+    G4double reflectorThickness = 20.*cm;      
+    G4double hzFastFilter = (0.6 / 2.0)* cm;
+    G4double hzGammaFilter = (3  / 2.0)*cm;     
+    G4double hzCollimator = (4 / 2.0)*cm;      
+
+    // مواصفات قناة البروتون والغلاف الرصاصي
+    G4double beamPipeRadius = 3.0 * cm;        
+    G4double pbSleeveThickness = 3.0 * cm;     
+
+    // الحسابات التلقائية للمواقع على محور Z
+    G4double currentZ = 0.*cm;
+
+    // 1. موقع شريحة الليثيوم (Target)
+    currentZ += targetZ;
+    G4ThreeVector xyzTarget(0., 0., currentZ);
+
+    // 2. موقع المهدئ (MgF2)
+    currentZ += targetZ + hzModerator;
+    G4ThreeVector xyzModerator(0., 0., currentZ);
+
+    // 2.5 موقع مرشح النيوترونات السريعة (النيكل)
+    currentZ += hzModerator + hzFastFilter;
+    G4ThreeVector xyzFastFilter(0., 0., currentZ);
+
+    // 3. موقع مصفاة غاما (البزموت)
+    currentZ += hzFastFilter + hzGammaFilter;
+    G4ThreeVector xyzGammaFilter(0., 0., currentZ);
+
+    // 4. موقع الموازئ (التنجستن) 
+    currentZ += hzGammaFilter + hzCollimator;
+    G4ThreeVector xyzCollimator(0., 0., currentZ);
+
+    // حسابات العاكس الرئيسي (بالشكل الذي اعتمدتيه ودرسِتِه)
+    G4double fullBsaLength = 2.0*hzModerator + 2.0*hzFastFilter + 2.0*hzGammaFilter + 2.0*hzCollimator;
+    G4double halfBsaLength = fullBsaLength / 2.0;
+
+    G4double bsaStartZ = xyzModerator.z() - hzModerator;
+    G4double bsaEndZ   = xyzCollimator.z() + hzCollimator;
+    G4double bsaCenterZ = 0.5 * (bsaStartZ + bsaEndZ);
+
+    G4double reflectorExtra = 1.0 * cm;
+    G4double reflectorBottomZ = (xyzTarget.z() - targetZ) - 20.0 * cm; 
+    G4double reflectorTopZ    = bsaEndZ + reflectorExtra;
+
+    G4double reflectorHalfLength = 0.5 * (reflectorTopZ - reflectorBottomZ);
+    G4double reflectorCenterZ    = 0.5 * (reflectorTopZ + reflectorBottomZ);
+
+    // بناء حجم العالم (World)
+    G4Box *solidWorld = new G4Box("solidWorld", LWorld, LWorld, LWorld);
+    G4LogicalVolume *logicWorld = new G4LogicalVolume(solidWorld, vacuum, "logicWorld");
+    G4VPhysicalVolume *physWorld = new G4PVPlacement(0, G4ThreeVector(0., 0., 0.), logicWorld, "physWorld", 0, false, 0, true);
+
+    G4VisAttributes *worldVis = new G4VisAttributes(G4Colour(0.8, 0.8, 0.8, 0.05)); 
+    worldVis->SetForceSolid(true); 
+    logicWorld->SetVisAttributes(worldVis);
+
+    // بناء شريحة الليثيوم (Target) - باستخدام ^7Li النقي تماماً
+    G4Box *solidTarget = new G4Box("solidTarget", targetX, targetY, targetZ);
+    logicTarget = new G4LogicalVolume(solidTarget, targetLi7, "logicTarget");
+    new G4PVPlacement(0, xyzTarget, logicTarget, "physTarget", logicWorld, false, 0, true);
+
+    G4VisAttributes *targetVis = new G4VisAttributes(G4Colour(1.0, 0.5, 0.0, 0.8)); // Orange
+    targetVis->SetForceSolid(true);
+    logicTarget->SetVisAttributes(targetVis);
+
+    // --- بناء مرشح النيوترونات السريعة (Nickel Filter) ---
+    G4Box *solidFastFilter = new G4Box("solidFastFilter", bsaX, bsaY, hzFastFilter);
+    logicFastFilter = new G4LogicalVolume(solidFastFilter, nickel, "logicFastFilter");
+    new G4PVPlacement(0, xyzFastFilter, logicFastFilter, "physFastFilter", logicWorld, false, 0, true);
+
+    G4VisAttributes *niVis = new G4VisAttributes(G4Colour(0.4, 0.8, 0.5, 0.5)); // Light green
+    niVis->SetForceSolid(true);
+    logicFastFilter->SetVisAttributes(niVis);
+
+    // المهدئ المربع (MgF2 Box)
+    G4Box *solidModerator = new G4Box("solidModerator", bsaX, bsaY, hzModerator);
+    logicModerator = new G4LogicalVolume(solidModerator, MgF2, "logicModerator");
+    new G4PVPlacement(0, xyzModerator, logicModerator, "physModerator", logicWorld, false, 0, true);
+    
+    G4VisAttributes *modVis = new G4VisAttributes(G4Colour(0.2, 0.5, 1.0, 0.5)); // Blue
+    modVis->SetForceSolid(true);
+    logicModerator->SetVisAttributes(modVis);
+
+    // مصفاة غاما (Bismuth Box)
+    G4Box *solidGammaFilter = new G4Box("solidGammaFilter", bsaX, bsaY, hzGammaFilter);
+    logicGammaFilter = new G4LogicalVolume(solidGammaFilter, bismuth, "logicGammaFilter");
+    new G4PVPlacement(0, xyzGammaFilter, logicGammaFilter, "physGammaFilter", logicWorld, false, 0, true);
+
+    G4VisAttributes *gammaVis = new G4VisAttributes(G4Colour(1.0, 0.6, 0.8, 0.5)); // Pink
+    gammaVis->SetForceSolid(true);
+    logicGammaFilter->SetVisAttributes(gammaVis);
+
+    // الموازئ المخروطي (Tungsten Collimator)
+    G4Box *solidCollimatorOuterBox = new G4Box("solidCollimatorOuterBox", bsaX, bsaY, hzCollimator);
+    G4double Rmin1_tunnel = 0.*mm;      
+    G4double Rmax1_tunnel = 9.0*cm;     
+    G4double Rmin2_tunnel = 0.*mm;      
+    G4double Rmax2_tunnel = 7.0*cm;     
+    
+    G4Cons *solidCollimatorInnerCone = new G4Cons("solidCollimatorInnerCone", Rmin1_tunnel, Rmax1_tunnel, Rmin2_tunnel, Rmax2_tunnel, hzCollimator + 1.*mm, 0.*deg, 360.*deg);
+    G4SubtractionSolid *solidCollimator = new G4SubtractionSolid("solidCollimator", solidCollimatorOuterBox, solidCollimatorInnerCone);
+    logicCollimator = new G4LogicalVolume(solidCollimator, tungsten, "logicCollimator");
+    new G4PVPlacement(0, xyzCollimator, logicCollimator, "physCollimator", logicWorld, false, 0, true);
+
+    G4VisAttributes *collVis = new G4VisAttributes(G4Colour(1.0, 0.8, 0.1, 0.6)); // Yellow
+    collVis->SetForceSolid(true);
+    logicCollimator->SetVisAttributes(collVis);
+
+    // =========================================================================
+    // 1. الفراغ قبل العاكس (Vacuum Beam Pipe Before Reflector) - من بداية العالم حتى بداية العاكس
+    // =========================================================================
+    G4double pipeBeforeStartZ = -LWorld;
+    G4double pipeBeforeEndZ = reflectorBottomZ;
+    G4double pipeBeforeHalfZ = (pipeBeforeEndZ - pipeBeforeStartZ) / 2.0;
+    G4double pipeBeforeCenterZ = pipeBeforeStartZ + pipeBeforeHalfZ;
+    G4ThreeVector xyzPipeBefore(0., 0., pipeBeforeCenterZ);
+
+    G4Tubs *solidPipeBefore = new G4Tubs("solidPipeBefore", 0.*cm, beamPipeRadius, pipeBeforeHalfZ, 0.*deg, 360.*deg);
+    G4LogicalVolume *logicPipeBefore = new G4LogicalVolume(solidPipeBefore, vacuum, "logicPipeBefore");
+    new G4PVPlacement(0, xyzPipeBefore, logicPipeBefore, "physPipeBefore", logicWorld, false, 0, true);
+
+    G4VisAttributes *pipeBeforeVis = new G4VisAttributes(G4Colour(0.6, 0.6, 0.6, 0.6)); // Gray
+    pipeBeforeVis->SetForceSolid(true);
+    logicPipeBefore->SetVisAttributes(pipeBeforeVis);
+
+    // =========================================================================
+    // 2. الفراغ داخل منطقة العاكس فقط (Vacuum Beam Pipe Inside Reflector)
+    // =========================================================================
+    G4double pipeInsideStartZ = reflectorBottomZ;
+    G4double pipeInsideEndZ = xyzTarget.z() - targetZ;
+    G4double pipeInsideHalfZ = (pipeInsideEndZ - pipeInsideStartZ) / 2.0;
+    G4double pipeInsideCenterZ = pipeInsideStartZ + pipeInsideHalfZ;
+    G4ThreeVector xyzPipeInside(0., 0., pipeInsideCenterZ);
+
+    G4Tubs *solidPipeInside = new G4Tubs("solidPipeInside", 0.*cm, beamPipeRadius, pipeInsideHalfZ, 0.*deg, 360.*deg);
+    G4LogicalVolume *logicPipeInside = new G4LogicalVolume(solidPipeInside, vacuum, "logicPipeInside");
+    new G4PVPlacement(0, xyzPipeInside, logicPipeInside, "physPipeInside", logicWorld, false, 0, true);
+
+    G4VisAttributes *pipeInsideVis = new G4VisAttributes(G4Colour(0.3, 0.8, 1.0, 0.4)); // Cyan / light blue
+    pipeInsideVis->SetForceSolid(true);
+    logicPipeInside->SetVisAttributes(pipeInsideVis);
+
+    // =========================================================================
+    // 3. الغلاف الرصاصي (Pb Sleeve) - محصور حصرياً داخل منطقة العاكس فقط
+    // =========================================================================
+    G4Tubs *solidPbSleeve = new G4Tubs("solidPbSleeve", beamPipeRadius, beamPipeRadius + pbSleeveThickness, pipeInsideHalfZ, 0.*deg, 360.*deg);
+    G4LogicalVolume *logicPbSleeve = new G4LogicalVolume(solidPbSleeve, lead, "logicPbSleeve");
+    new G4PVPlacement(0, xyzPipeInside, logicPbSleeve, "physPbSleeve", logicWorld, false, 0, true);
+
+    G4VisAttributes *sleeveVis = new G4VisAttributes(G4Colour(0.3, 0.1, 0.4, 0.6)); // Dark purple
+    sleeveVis->SetForceSolid(true);
+    logicPbSleeve->SetVisAttributes(sleeveVis);
+
+    // =========================================================================
+    // 4. العاكس الرئيسي (Main Pb Reflector) ومعاملات الطرح الهندسي
+    // =========================================================================
+    G4Box *solidOuterReflector = new G4Box("solidOuterReflector", 
+                                           bsaX + reflectorThickness, 
+                                           bsaY + reflectorThickness, 
+                                           reflectorHalfLength);
+
+    G4Box *solidInnerBsaSpace = new G4Box("solidInnerBsaSpace", bsaX, bsaY, halfBsaLength + 0.1*cm); 
+    G4ThreeVector bsaSubPos(0., 0., bsaCenterZ - reflectorCenterZ);
+
+    G4double intersectStartZ = reflectorBottomZ;
+    G4double intersectEndZ = xyzTarget.z() - targetZ;
+    G4double intersectLength = intersectEndZ - intersectStartZ;
+    G4double intersectHalfZ = intersectLength / 2.0;
+    G4double intersectCenterZ = intersectStartZ + intersectHalfZ;
+
+    G4Tubs *solidBeamChannelSpace = new G4Tubs("solidBeamChannelSpace", 0.*cm, beamPipeRadius + pbSleeveThickness + 0.1*cm, intersectHalfZ + 0.1*cm, 0.*deg, 360.*deg);
+    G4ThreeVector beamChannelSubPos(0., 0., intersectCenterZ - reflectorCenterZ);
+
+    G4double targetClearance = 0.5 * cm; 
+    G4Box *solidTargetSpace = new G4Box("solidTargetSpace", 
+                                        targetX + targetClearance, 
+                                        targetY + targetClearance, 
+                                        targetZ + targetClearance);
+    G4ThreeVector targetSubPos(0., 0., xyzTarget.z() - reflectorCenterZ);
+
+    G4SubtractionSolid *interRef1 = new G4SubtractionSolid("interRef1", solidOuterReflector, solidInnerBsaSpace, 0, bsaSubPos);
+    G4SubtractionSolid *interRef2 = new G4SubtractionSolid("interRef2", interRef1, solidBeamChannelSpace, 0, beamChannelSubPos);
+    G4SubtractionSolid *solidReflector = new G4SubtractionSolid("solidReflector", interRef2, solidTargetSpace, 0, targetSubPos);
+
+    logicReflector = new G4LogicalVolume(solidReflector, lead, "logicReflector");
+    new G4PVPlacement(0, G4ThreeVector(0., 0., reflectorCenterZ), logicReflector, "physReflector", logicWorld, false, 0, true);
+
+    G4VisAttributes *refVis = new G4VisAttributes(G4Colour(0.6, 0.2, 0.8, 0.3)); // Transparent purple
+    refVis->SetForceSolid(true);
+    logicReflector->SetVisAttributes(refVis);
+
+    // --- 4. بناء كاشف الـ BF3 مُلتصقاً تماماً دون أي فجوة عند مخرج الموازئ ---
+    G4double detectorRadius = 7.0 * cm;  
+    G4double detectorHalfLength = 1.0 * cm; 
+
+    G4Tubs *solidBF3Detector = new G4Tubs("solidBF3Detector", 0.*mm, detectorRadius, detectorHalfLength, 0.*deg, 360.*deg);
+    logicDetector = new G4LogicalVolume(solidBF3Detector, BF3Gas, "LogicDetector");
+    
+    G4double detectorZ = xyzCollimator.z() + hzCollimator + detectorHalfLength;
+    G4ThreeVector xyzDetector(0., 0., detectorZ);
+    
+    new G4PVPlacement(0, xyzDetector, logicDetector, "physDetector", logicWorld, false, 0, true);
+
+    G4VisAttributes *detVis = new G4VisAttributes(G4Colour(0.1, 0.8, 0.3, 0.5)); // Green
+    detVis->SetForceSolid(true);
+    logicDetector->SetVisAttributes(detVis);
+    
+    // تعريف الـ Regions والـ Step Limits
+    G4Region* targetRegion = new G4Region("TargetRegion");
+    targetRegion->AddRootLogicalVolume(logicTarget);
+    G4UserLimits* stepLimit = new G4UserLimits(1.0 * um);
+    targetRegion->SetUserLimits(stepLimit); 
+
+    G4Region* bsaRegion = new G4Region("BSARegion");
+    bsaRegion->AddRootLogicalVolume(logicFastFilter);
+    bsaRegion->AddRootLogicalVolume(logicModerator);
+    bsaRegion->AddRootLogicalVolume(logicGammaFilter);
+    
+    G4Region* reflectorRegion = new G4Region("ReflectorRegion");
+    reflectorRegion->AddRootLogicalVolume(logicReflector);  
+    reflectorRegion->AddRootLogicalVolume(logicCollimator);
+    reflectorRegion->AddRootLogicalVolume(logicPbSleeve);
+  
+    return physWorld;
+}
+
+void MyDetectorConstruction::ConstructSDandField()
+{
+    G4SDManager* sdMan = G4SDManager::GetSDMpointer();
+    
+    MySensitiveDetector *bsaSensitiveDetector = new MySensitiveDetector("BsaSD");
+    sdMan->AddNewDetector(bsaSensitiveDetector);
+
+    if(logicTarget)      logicTarget->SetSensitiveDetector(bsaSensitiveDetector);
+    if(logicFastFilter)  logicFastFilter->SetSensitiveDetector(bsaSensitiveDetector);
+    if(logicModerator)   logicModerator->SetSensitiveDetector(bsaSensitiveDetector);
+    if(logicGammaFilter) logicGammaFilter->SetSensitiveDetector(bsaSensitiveDetector);
+    if(logicCollimator)  logicCollimator->SetSensitiveDetector(bsaSensitiveDetector);
+    if(logicReflector)   logicReflector->SetSensitiveDetector(bsaSensitiveDetector);
+
+    G4MultiFunctionalDetector* detectorScorer = new G4MultiFunctionalDetector("DetectorScorer");
+    sdMan->AddNewDetector(detectorScorer);
+
+    G4VPrimitiveScorer* gammaDose = new G4PSDoseDeposit("GammaDose");
+    G4SDParticleFilter* gammaFilter = new G4SDParticleFilter("gammaFilter");
+    gammaFilter->add("gamma");
+    gammaDose->SetFilter(gammaFilter);
+    detectorScorer->RegisterPrimitive(gammaDose);
+
+    if(logicDetector) {
+        logicDetector->SetSensitiveDetector(detectorScorer);
+    }
+}
+
+
+
+
+
+
+
+
+
+
+
+
+#include "runaction.hh"
+#include <fstream>
+#include <vector>
+#include "G4AccumulableManager.hh"
+#include "G4Run.hh"
+#include "G4ScoringManager.hh"
+#include "G4SDManager.hh"
+#include "G4THitsMap.hh"
+#include "G4Event.hh"
+#include "G4AnalysisManager.hh"
+
+MyRunAction::MyRunAction()
+{
+    G4AnalysisManager* man = G4AnalysisManager::Instance();
+    man->SetDefaultFileType("csv");
+    
+    man->SetNtupleMerging(true);
+
+    // Ntuple 0: Target
+    man->CreateNtuple("Target", "Target"); 
+    man->CreateNtupleIColumn("fEvent"); 
+    man->CreateNtupleDColumn("PreStepEnergy_keV"); 
+    man->CreateNtupleDColumn("PostStepEnergy_keV"); 
+    man->CreateNtupleDColumn("fX_m");
+    man->CreateNtupleDColumn("fY_m");
+    man->CreateNtupleDColumn("fZ_m");
+    man->FinishNtuple(0); 
+
+    // Ntuple 1: Detector (BSA_Output_Neutrons) -> ID = 1
+    man->CreateNtuple("Detector", "BSA_Output_Neutrons"); 
+    man->CreateNtupleIColumn("fEvent");             
+    man->CreateNtupleDColumn("Energy_eV");            
+    man->CreateNtupleDColumn("CosTheta");              
+    man->CreateNtupleDColumn("fX_cm");                 
+    man->CreateNtupleDColumn("fY_cm");                 
+    man->CreateNtupleDColumn("R_cm");                  
+    man->CreateNtupleDColumn("FluxWeight");            
+    man->FinishNtuple(1); 
+
+    // Ntuple 2: GammaOutput -> ID = 2
+    man->CreateNtuple("GammaOutput", "BSA_Output_Gamma");
+    man->CreateNtupleIColumn("fEvent");             
+    man->CreateNtupleDColumn("Energy_MeV");           
+    man->CreateNtupleDColumn("fX_cm");                
+    man->CreateNtupleDColumn("fY_cm");                
+    man->CreateNtupleDColumn("FluxWeight");           
+    man->FinishNtuple(2);
+
+    // Ntuple 3: TargetInterface -> ID = 3
+    man->CreateNtuple("TargetInterface", "Target_Moderator_Interface");
+    man->CreateNtupleIColumn("fEvent");
+    man->CreateNtupleDColumn("Energy_eV");
+    man->FinishNtuple(3);
+
+    // Ntuple 4: Target_Exit -> ID = 4
+    man->CreateNtuple("Target_Exit", "Neutrons_After_Target");
+    man->CreateNtupleIColumn("fEvent");
+    man->CreateNtupleDColumn("Energy_eV");
+    man->CreateNtupleDColumn("Weight");
+    man->FinishNtuple(4);
+
+    // Ntuple 5: Moderator_Exit -> ID = 5
+    man->CreateNtuple("Moderator_Exit", "Neutrons_After_Moderator");
+    man->CreateNtupleIColumn("fEvent");
+    man->CreateNtupleDColumn("Energy_eV");
+    man->CreateNtupleDColumn("Weight");
+    man->FinishNtuple(5);
+
+    // Ntuple 6: FastFilter_Exit -> ID = 6
+    man->CreateNtuple("FastFilter_Exit", "Neutrons_After_FastFilter");
+    man->CreateNtupleIColumn("fEvent");
+    man->CreateNtupleDColumn("Energy_eV");
+    man->CreateNtupleDColumn("Weight");
+    man->FinishNtuple(6);
+
+    // Ntuple 7: GammaFilter_Exit -> ID = 7
+    man->CreateNtuple("GammaFilter_Exit", "Neutrons_After_GammaFilter");
+    man->CreateNtupleIColumn("fEvent");
+    man->CreateNtupleDColumn("Energy_eV");
+    man->CreateNtupleDColumn("Weight");
+    man->FinishNtuple(7);
+
+    // تسجيل العدادات التراكمية (Accumulables)
+    G4AccumulableManager* accumulableManager = G4AccumulableManager::Instance();
+    accumulableManager->Register(nTarget);
+    accumulableManager->Register(nModerator);
+    accumulableManager->Register(nFastFilter);
+    accumulableManager->Register(nGammaFilter);
+    accumulableManager->Register(nGamma);
+    accumulableManager->Register(nCollimator);
+    accumulableManager->Register(nReflector);
+    accumulableManager->Register(nDetector);
+    
+    accumulableManager->Register(dFastAccumulated);
+    accumulableManager->Register(dGammaAccumulated);
+
+    accumulableManager->Register(nThermalFluxCount);
+    accumulableManager->Register(nEpithermal);
+    accumulableManager->Register(nFast);
+    accumulableManager->Register(nCurrentEpithermal);
+}
+
+MyRunAction::~MyRunAction()
+{} 
+
+void MyRunAction::BeginOfRunAction(const G4Run*)
+{
+
+// إذا أردتِ تشغيل الـ Loop التلقائي بالكامل داخل الـ Run الواحد:
+    std::vector<G4double> thicknesses = {10.0, 15.0, 20.0, 25.0, 30.0, 35.0, 40.0, 45.0};
+    
+    std::ofstream summaryFile("moderator_sweep_summary.csv", std::ios::app);
+    
+    
+    G4AccumulableManager* accumulableManager = G4AccumulableManager::Instance();
+    accumulableManager->Reset();
+
+    G4AnalysisManager* man = G4AnalysisManager::Instance();
+    man->OpenFile("output.csv");
+}
+
+void MyRunAction::EndOfRunAction(const G4Run* aRun)
+{
+    G4AnalysisManager* man = G4AnalysisManager::Instance();
+    man->Write();
+    man->CloseFile();
+
+    G4AccumulableManager::Instance()->Merge();
+
+    if (G4Threading::IsMasterThread()) 
+    {
+        G4cout << "------------------- Run Complete! -------------------" << G4endl;
+
+        G4double countTarget     = nTarget.GetValue();
+        G4double countModerator  = nModerator.GetValue();
+        G4double countFastFilt   = nFastFilter.GetValue();
+        G4double countGammaFilt  = nGammaFilter.GetValue();
+
+        G4double masterThermalCounts    = nThermalFluxCount.GetValue();
+        G4double masterEpithermalCounts = nEpithermal.GetValue();
+        G4double masterFastCounts       = nFast.GetValue();
+        G4double masterCurrentEpithermal = nCurrentEpithermal.GetValue();
+        G4double numDetectorNeutrons    = nDetector.GetValue();  
+
+        G4cout << "\n=====================================================" << G4endl;
+        G4cout << "         NEUTRON COUNTS AFTER EACH COMPONENT         " << G4endl;
+        G4cout << "=====================================================" << G4endl;
+        G4cout << "Neutrons exiting Target (toward moderator) : " << countTarget << G4endl;
+        G4cout << "Neutrons exiting Moderator   : " << countModerator << G4endl;
+        G4cout << "Neutrons exiting Fast Filter : " << countFastFilt << G4endl;
+        G4cout << "Neutrons exiting Gamma Filter: " << countGammaFilt << G4endl;
+        G4cout << "Total Detector Crossings     : " << numDetectorNeutrons << G4endl;
+        G4cout << "=====================================================\n" << G4endl;
+
+        G4cout << "\n=====================================================" << G4endl;
+        G4cout << "                      🛑 DEBUG COUNTS 🛑                     " << G4endl;
+        G4cout << "=====================================================" << G4endl;
+        G4cout << "Weighted Thermal Surface-Flux Sum   (< 0.5 eV)   : " << masterThermalCounts << G4endl;
+        G4cout << "Weighted Epithermal Surface-Flux Sum(0.5eV-10keV): " << masterEpithermalCounts << G4endl;
+        G4cout << "Weighted Fast Surface-Flux Sum      (> 10 keV)   : " << masterFastCounts << G4endl;
+        G4cout << "Weighted Gamma Surface-Flux Sum      (At Boundary): " << nGamma.GetValue() << G4endl;
+        G4cout << "Raw Detector Crossing Count                      : " << numDetectorNeutrons << G4endl;
+        G4cout << "=====================================================\n" << G4endl;
+
+        G4double radius = 7.0 * CLHEP::cm; 
+        G4double A_cm2 = (CLHEP::pi * radius * radius) / (CLHEP::cm * CLHEP::cm);
+        G4double N_p = aRun->GetNumberOfEventToBeProcessed(); 
+
+        G4double fluxThermal    = masterThermalCounts / (A_cm2 * N_p); 
+        G4double fluxEpithermal = masterEpithermalCounts / (A_cm2 * N_p);
+        G4double fluxFast       = masterFastCounts / (A_cm2 * N_p);
+        G4double fluxGamma      = nGamma.GetValue() / (A_cm2 * N_p); 
+
+        G4cout << "=====================================================" << G4endl;
+        G4cout << "         FINAL PARTICLE FLUX AT BSA OUTPUT           " << G4endl;
+        G4cout << "=====================================================" << G4endl;
+        G4cout << std::scientific; 
+        G4cout << "Thermal Flux (<0.5 eV)        : " << fluxThermal    << " n/cm^2.primary" << G4endl;
+        G4cout << "Epithermal Flux (0.5eV-10keV) : " << fluxEpithermal << " n/cm^2.primary" << G4endl;
+        G4cout << "Fast Flux (>10 keV)           : " << fluxFast       << " n/cm^2.primary" << G4endl;
+        G4cout << "-----------------------------------------------------" << G4endl;
+        G4cout << "Gamma Contamination Flux      : " << fluxGamma      << " photons/cm^2.primary" << G4endl;
+        G4cout << "=====================================================" << G4endl;
+
+        G4double beamCurrent = 30.0e-3; 
+        G4double protonCharge = 1.602176634e-19; 
+        G4double protonsPerSecond = beamCurrent / protonCharge; 
+
+        G4double realFluxThermal    = fluxThermal * protonsPerSecond;
+        G4double realFluxEpithermal = fluxEpithermal * protonsPerSecond;
+        G4double realFluxFast       = fluxFast * protonsPerSecond;
+        G4double realFluxGamma      = fluxGamma * protonsPerSecond;
+
+        G4cout << G4endl;
+        G4cout << "=====================================================" << G4endl;
+        G4cout << "        REAL ABSOLUTE FLUX AT 30 mA BEAM CURRENT     " << G4endl;
+        G4cout << "=====================================================" << G4endl;
+        G4cout << "Real Thermal Flux            : " << realFluxThermal    << " n/cm^2.s" << G4endl;
+        G4cout << "Real Epithermal Flux (BNCT)  : " << realFluxEpithermal << " n/cm^2.s" << G4endl;
+        G4cout << "Real Fast Flux               : " << realFluxFast       << " n/cm^2.s" << G4endl;
+        G4cout << "-----------------------------------------------------" << G4endl;
+        G4cout << "Real Gamma Contamination Flux: " << realFluxGamma      << " photons/cm^2.s" << G4endl;
+        G4cout << "=====================================================" << G4endl;
+
+        G4double ratioThermalEpithermal = (masterEpithermalCounts > 0.0) ? (realFluxThermal / realFluxEpithermal) : 0.0;
+        
+        G4double doseFastPerEpithermal  = (masterEpithermalCounts > 0.0) ? (dFastAccumulated.GetValue() / masterEpithermalCounts) : 0.0; 
+        G4double doseGammaPerEpithermal = (masterEpithermalCounts > 0.0) ? (dGammaAccumulated.GetValue() / masterEpithermalCounts) : 0.0;
+
+        G4double directionality = (masterEpithermalCounts > 0.0) ? (masterCurrentEpithermal / masterEpithermalCounts) : 0.0;
+
+        G4cout << G4endl;
+        G4cout << "=====================================================" << G4endl;
+        G4cout << "    IAEA BNCT BEAM QUALITY RECOMMENDATIONS METRIC    " << G4endl;
+        G4cout << "=====================================================" << G4endl;
+        G4cout << std::defaultfloat; 
+        
+        G4cout << "1. Epithermal Flux (IAEA Target: > 5 e+8 n/cm^2.s) -> Value: " << realFluxEpithermal << G4endl;
+        
+        // تعديل طباعة نسبة Phi_epi / Phi_fast لتكون شرطية تماماً
+        if (realFluxFast > 0.0)
+        {
+            G4double ratioEpithermalFast = realFluxEpithermal / realFluxFast;
+            G4cout << "2. Phi_epithermal / Phi_fast     (IAEA Target: Recommended)-> Value: " << ratioEpithermalFast << G4endl;
+        }
+        else
+        {
+            G4cout << "2. Phi_epithermal / Phi_fast     (IAEA Target: Recommended)-> Value: undefined (Phi_fast = 0)" << G4endl;
+        }
+
+        G4cout << "3. Phi_thermal / Phi_epithermal  (IAEA Target: < 0.05)    -> Value: " << ratioThermalEpithermal << G4endl;
+        
+        G4cout << std::scientific;
+        G4cout << "4. D_fast / Phi_epithermal  (IAEA Target: < 7e-13)     -> Value: " << doseFastPerEpithermal  << " Gy.cm^2" << G4endl;
+        G4cout << "5. D_gamma / Phi_epithermal (IAEA Target: < 2e-13)     -> Value: " << doseGammaPerEpithermal << " Gy.cm^2" << G4endl;
+        
+        G4cout << std::defaultfloat;
+        G4cout << "6. Beam Directionality (J / Phi_epi) (IAEA Target: > 0.7)-> Value: " << directionality << G4endl;
+        G4cout << "=====================================================" << G4endl;
+    }
+}
+
+
+
+
+
+
+
+
+
+#include "stepping.hh"
+#include "G4RunManager.hh"
+#include "G4Track.hh"
+#include "G4SystemOfUnits.hh"
+#include "G4AnalysisManager.hh"
+#include <cmath>
+#include <vector>
+
+MySteppingAction::MySteppingAction(MyRunAction* runAction)
+: G4UserSteppingAction(), fRunAction(runAction)
+{}
+
+MySteppingAction::~MySteppingAction()
+{}
+
+void MySteppingAction::UserSteppingAction(const G4Step* step)
+{
+    G4Track* track = step->GetTrack();
+    
+    G4String particleName = track->GetDefinition()->GetParticleName();
+
+    if (step->GetPostStepPoint()->GetStepStatus() == fGeomBoundary) 
+    {
+        if (!step->GetPreStepPoint()->GetTouchableHandle()->GetVolume() || 
+            !step->GetPostStepPoint()->GetTouchableHandle()->GetVolume()) {
+            return;
+        }
+
+        G4String volumeFrom = step->GetPreStepPoint()->GetTouchableHandle()->GetVolume()->GetName();
+        G4String volumeTo = step->GetPostStepPoint()->GetTouchableHandle()->GetVolume()->GetName();
+
+        G4double kineticEnergy = step->GetPostStepPoint()->GetKineticEnergy();
+        G4double energy_eV = kineticEnergy / CLHEP::eV;
+        G4double energy_MeV = kineticEnergy / CLHEP::MeV;
+        G4double weight = track->GetWeight();
+        G4int eventID = G4RunManager::GetRunManager()->GetCurrentEvent()->GetEventID();
+
+        G4AnalysisManager* man = G4AnalysisManager::Instance();
+
+        if (particleName == "neutron") 
+        {
+            // 1. Target -> Moderator
+            if (volumeFrom == "physTarget" && volumeTo == "physModerator") 
+            {
+                fRunAction->nTarget++;
+                man->FillNtupleIColumn(4, 0, eventID);
+                man->FillNtupleDColumn(4, 1, energy_eV);
+                man->FillNtupleDColumn(4, 2, weight);
+                man->AddNtupleRow(4);
+            }
+            // 2. Moderator -> FastFilter
+            else if (volumeFrom == "physModerator" && volumeTo == "physFastFilter") 
+            {
+                fRunAction->nModerator++;
+                man->FillNtupleIColumn(5, 0, eventID);
+                man->FillNtupleDColumn(5, 1, energy_eV);
+                man->FillNtupleDColumn(5, 2, weight);
+                man->AddNtupleRow(5);
+            }
+            // 3. FastFilter -> GammaFilter
+            else if (volumeFrom == "physFastFilter" && volumeTo == "physGammaFilter") 
+            {
+                fRunAction->nFastFilter++;
+                man->FillNtupleIColumn(6, 0, eventID);
+                man->FillNtupleDColumn(6, 1, energy_eV);
+                man->FillNtupleDColumn(6, 2, weight);
+                man->AddNtupleRow(6);
+            }
+            // 4. GammaFilter -> Collimator
+            else if (volumeFrom == "physGammaFilter" && volumeTo == "physCollimator") 
+            {
+                fRunAction->nGammaFilter++;
+                man->FillNtupleIColumn(7, 0, eventID);
+                man->FillNtupleDColumn(7, 1, energy_eV);
+                man->FillNtupleDColumn(7, 2, weight);
+                man->AddNtupleRow(7);
+            }
+        }
+
+        // 5. الوصول للكاشف النهائي عند مخرج الـ BSA
+        if (volumeTo == "physDetector")
+        {
+            G4ThreeVector momentumDir = track->GetMomentumDirection();
+            G4double cosTheta = momentumDir.z(); 
+
+            if (cosTheta > 0.0) 
+            {
+                G4double fluxWeight = weight / cosTheta;
+
+                if (particleName == "neutron") 
+                {
+                    fRunAction->nDetector++;
+
+                    if (energy_eV < 0.5) {
+                        fRunAction->nThermalFluxCount += fluxWeight;
+                    }
+                    else if (energy_eV >= 0.5 && energy_eV <= 10000.0) {
+                        fRunAction->nEpithermal += fluxWeight;            
+                        fRunAction->nCurrentEpithermal += weight;            
+                    }
+                    else if (energy_eV > 10000.0) {
+                        fRunAction->nFast += fluxWeight;
+
+                        // حساب كيرما النيوترونات السريعة للنيوترونات السريعة فقط (> 10 keV)
+                        static const std::vector<G4double> e_n = {0.01, 0.02, 0.05, 0.1, 0.2, 0.5, 1.0, 2.0, 5.0, 10.0};
+                        static const std::vector<G4double> k_n = {1.8e-12, 3.2e-12, 7.0e-12, 1.2e-11, 1.9e-11, 2.8e-11, 3.8e-11, 4.3e-11, 4.8e-11, 5.2e-11};
+                        G4double fastKermaFactor = 0.0;
+                        if (energy_MeV <= e_n.front()) { fastKermaFactor = k_n.front(); } 
+                        else if (energy_MeV >= e_n.back()) { fastKermaFactor = k_n.back(); } 
+                        else {
+                            for (size_t i = 0; i < e_n.size() - 1; ++i) {
+                                if (energy_MeV >= e_n[i] && energy_MeV <= e_n[i+1]) {
+                                    G4double fraction = (energy_MeV - e_n[i]) / (e_n[i+1] - e_n[i]);
+                                    fastKermaFactor = k_n[i] + fraction * (k_n[i+1] - k_n[i]);
+                                    break;
+                                }
+                            }
+                        }
+                        fRunAction->dFastAccumulated += fastKermaFactor * track->GetWeight();
+                    }
+
+                    // Ntuple 1: Detector Neutrons
+                    man->FillNtupleIColumn(1, 0, eventID);
+                    man->FillNtupleDColumn(1, 1, energy_eV);
+                    man->FillNtupleDColumn(1, 2, cosTheta);
+                    
+                    G4double x_cm = track->GetPosition().x() / CLHEP::cm;
+                    G4double y_cm = track->GetPosition().y() / CLHEP::cm;
+                    G4double r_cm = std::sqrt(x_cm * x_cm + y_cm * y_cm);
+
+                    man->FillNtupleDColumn(1, 3, x_cm);
+                    man->FillNtupleDColumn(1, 4, y_cm);
+                    man->FillNtupleDColumn(1, 5, r_cm);
+                    man->FillNtupleDColumn(1, 6, fluxWeight);
+
+                    man->AddNtupleRow(1);
+
+                    track->SetTrackStatus(fStopAndKill); 
+                }
+                else if (particleName == "gamma") 
+                {
+                    fRunAction->nGamma += fluxWeight;    
+                    
+                    static const std::vector<G4double> e_g = {0.01, 0.03, 0.05, 0.1, 0.2, 0.5, 1.0, 2.0, 5.0, 10.0};
+                    static const std::vector<G4double> k_g = {4.8e-12, 2.2e-12, 1.6e-12, 2.2e-12, 3.0e-12, 4.2e-12, 5.8e-12, 8.2e-12, 1.4e-11, 2.2e-11};
+                    G4double gammaKermaFactor = 0.0;
+                    if (energy_MeV <= e_g.front()) { gammaKermaFactor = k_g.front(); } 
+                    else if (energy_MeV >= e_g.back()) { gammaKermaFactor = k_g.back(); } 
+                    else {
+                        for (size_t i = 0; i < e_g.size() - 1; ++i) {
+                            if (energy_MeV >= e_g[i] && energy_MeV <= e_g[i+1]) {
+                                G4double fraction = (energy_MeV - e_g[i]) / (e_g[i+1] - e_g[i]);
+                                gammaKermaFactor = k_g[i] + fraction * (k_g[i+1] - k_g[i]);
+                                break;
+                            }
+                        }
+                    }
+                    
+                    // تم تفعيل السطر التالي لحساب وتجميع كيرما أشعة غاما
+                    fRunAction->dGammaAccumulated += gammaKermaFactor * track->GetWeight();
+
+                    // Ntuple 2: Gamma Output
+                    man->FillNtupleIColumn(2, 0, eventID);
+                    man->FillNtupleDColumn(2, 1, energy_MeV);
+                    man->FillNtupleDColumn(2, 2, track->GetPosition().x() / CLHEP::cm);
+                    man->FillNtupleDColumn(2, 3, track->GetPosition().y() / CLHEP::cm);
+                    man->FillNtupleDColumn(2, 4, fluxWeight);
+                    man->AddNtupleRow(2);
+
+                    track->SetTrackStatus(fStopAndKill); 
+                }
+            }
+        }
+    }
+}
+
+
