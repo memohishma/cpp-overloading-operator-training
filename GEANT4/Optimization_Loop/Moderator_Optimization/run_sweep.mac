@@ -1,0 +1,35 @@
+/control/verbose 1
+/run/verbose 1
+
+/detector/setModeratorThickness 20 cm
+/run/beamOn 10000000
+
+/detector/setModeratorThickness 22 cm
+/run/beamOn 10000000
+
+/detector/setModeratorThickness 24 cm
+/run/beamOn 10000000
+
+/detector/setModeratorThickness 26 cm
+/run/beamOn 10000000
+
+/detector/setModeratorThickness 28 cm
+/run/beamOn 10000000
+
+/detector/setModeratorThickness 30 cm
+/run/beamOn 10000000
+
+/detector/setModeratorThickness 32 cm
+/run/beamOn 10000000
+
+/detector/setModeratorThickness 34 cm
+/run/beamOn 10000000
+
+/detector/setModeratorThickness 36 cm
+/run/beamOn 10000000
+
+/detector/setModeratorThickness 38 cm
+/run/beamOn 10000000
+
+/detector/setModeratorThickness 40 cm
+/run/beamOn 10000000
