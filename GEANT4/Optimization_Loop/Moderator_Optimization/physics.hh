@@ -1,17 +1,23 @@
-#ifndef PHYSICS_HH
-#define PHYSICS_HH 
+#ifndef PROTONLI_HH
+#define PROTONLI_HH
 
-#include "G4VModularPhysicsList.hh"
-#include "globals.hh"
+#include <iostream>
 
-class MyPhysicsList : public G4VModularPhysicsList
-{
-public:
-    MyPhysicsList();
-    virtual ~MyPhysicsList();
+#include "G4RunManager.hh" //import header files needed to run GEANT4
+#include "G4MTRunManager.hh" 
+#include "G4UImanager.hh" //#include "G4UIManager.hh" 
+#include "G4VisManager.hh"
+#include "G4VisExecutive.hh"
+#include "G4UIExecutive.hh"
+#include "G4Threading.hh" 
 
-    virtual void ConstructParticle() override; // 🌟 تأكدي من وجود هذا السطر هنا
-    virtual void SetCuts() override;
-};
+#include "construction.hh" //import the header files written for this application
+#include "physics.hh"
+#include "action.hh"
+
+//simulation parameters
+G4bool runWithVis = true; //run with the visualization window initilized or not
+//G4int NumThreads = 12; //the number of threads the program should use
+G4int NumThreads = G4Threading::G4GetNumberOfCores(); //this sets the optimum number of threads based on the number of cores in the computer
 
 #endif
