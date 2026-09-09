@@ -1,0 +1,47 @@
+#ifndef CONSTRUCTION_HH
+#define CONSTRUCTION_HH
+
+#include "G4VUserDetectorConstruction.hh"
+#include "G4VPhysicalVolume.hh"
+#include "G4LogicalVolume.hh"
+#include "G4Box.hh"
+#include "G4Tubs.hh"
+#include "G4NistManager.hh"
+#include "G4SystemOfUnits.hh"
+#include "detector.hh"
+#include "G4MultiFunctionalDetector.hh"
+#include "G4RunManager.hh"
+
+class MyDetectorMessenger; // تعريف مسبق فقط
+
+class MyDetectorConstruction : public G4VUserDetectorConstruction
+{
+public:
+    MyDetectorConstruction();
+    ~MyDetectorConstruction();
+
+    virtual G4VPhysicalVolume *Construct() override;
+    virtual void ConstructSDandField() override;
+    
+    void SetModeratorThickness(G4double val);
+    G4double GetModeratorThickness() const { return fModeratorThickness; }
+    
+private:
+    MyDetectorMessenger* fMessenger;
+    G4MultiFunctionalDetector* bsaScorer;
+    
+    G4LogicalVolume *logicTarget;
+    G4LogicalVolume *logicFastFilter;
+    G4LogicalVolume *logicModerator;
+    G4LogicalVolume *logicGammaFilter;
+    G4LogicalVolume *logicCollimator;
+    G4LogicalVolume *logicReflector;
+    G4LogicalVolume *logicDetector;
+    
+    G4double fModeratorThickness;
+};
+
+#endif
+
+   
+   
