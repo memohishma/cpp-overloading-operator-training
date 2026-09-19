@@ -259,7 +259,7 @@ void MyRunAction::EndOfRunAction(const G4Run* aRun)
         G4cout << "6. Beam Directionality (J / Phi_epi) (IAEA Target: > 0.7)-> Value: " << directionality << G4endl;
         G4cout << "=====================================================" << G4endl;
 
-        G4double moderatorThickness = 0.0; // قم بتعديلها لاحقاً إذا كانت جزءاً من حلقة (Loop)
+        G4double moderatorThickness = 20; // قم بتعديلها لاحقاً إذا كانت جزءاً من حلقة (Loop)
 
         // --- 1. حفظ نتائج التيار في ملف moderator_sweep_surface_current.csv ---
         {
