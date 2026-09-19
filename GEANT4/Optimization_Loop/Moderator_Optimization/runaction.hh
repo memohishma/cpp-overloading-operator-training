@@ -11,8 +11,6 @@
 #include "G4Threading.hh"
 #include "G4Accumulable.hh"
 
-class MyDetectorConstruction; // أضيفي هذا السطر هنا
-
 class MyRunAction : public G4UserRunAction
 {
     public:
@@ -21,35 +19,31 @@ class MyRunAction : public G4UserRunAction
 
         virtual void BeginOfRunAction(const G4Run*);
         virtual void EndOfRunAction(const G4Run*);
-        
-        void SetDetectorConstruction(MyDetectorConstruction* det) { fDetector = det; }
 
-    // عدادات العد الهندسي واجتياز المكونات
-    G4Accumulable<G4double> nTarget = 0;
-    G4Accumulable<G4double> nModerator = 0;
-    G4Accumulable<G4double> nGammaFilter = 0; // تمت الإضافة هنا لتجنب خطأ التجميع
-    G4Accumulable<G4double> nFastFilter = 0;
-    G4Accumulable<G4double> nCollimator = 0;
-    G4Accumulable<G4double> nReflector = 0;
-    G4Accumulable<G4double> nDetector = 0;
-     
-    // العدادات والجرعات التي تستقبل أوزاناً وقيم كسرية (G4double)
-    G4Accumulable<G4double> dFastAccumulated = 0;
-    G4Accumulable<G4double> dGammaAccumulated = 0;
+        G4Accumulable<G4int> nTarget = 0;
+        G4Accumulable<G4int> nFastFilter = 0;
+        G4Accumulable<G4int> nModerator = 0;
+        G4Accumulable<G4int> nCollimator = 0;
+        G4Accumulable<G4int> nReflector = 0;
+        G4Accumulable<G4int> nDetector = 0;
+         
+        // عدادات الكيرما المنفصلة (Flux vs Current)
+        G4Accumulable<G4double> dFastFluxAccumulated = 0;
+        G4Accumulable<G4double> dFastCurrentAccumulated = 0;
+        G4Accumulable<G4double> dGammaFluxAccumulated = 0;
+        G4Accumulable<G4double> dGammaCurrentAccumulated = 0;
 
-    
-    G4Accumulable<G4double> nNeutronsFromTarget = 0; // أضيفي هذا السطر هنا
-    
-    
-    
-    G4Accumulable<G4double> nThermalFluxCount = 0; 
-    G4Accumulable<G4double> nEpithermal = 0;
-    G4Accumulable<G4double> nCurrentEpithermal = 0; // التيار الإبيثرمي الفعلي J_epi
-    G4Accumulable<G4double> nFast = 0;
-    G4Accumulable<G4double> nGamma = 0;   
-    
-    private:
-    MyDetectorConstruction* fDetector;          
+        // عدادات الفيض (Surface Flux / Cosine Corrected)
+        G4Accumulable<G4int> nThermalFluxCount = 0;
+        G4Accumulable<G4int> nEpithermalFlux = 0;
+        G4Accumulable<G4int> nFastFlux = 0;
+        G4Accumulable<G4int> nGammaFlux = 0;
+
+        // عدادات التيار (Surface Current / No Cosine)
+        G4Accumulable<G4int> nThermalCurrentCount = 0;
+        G4Accumulable<G4int> nEpithermalCurrent = 0;
+        G4Accumulable<G4int> nFastCurrent = 0;
+        G4Accumulable<G4int> nGammaCurrent = 0;
 };
 
 #endif
