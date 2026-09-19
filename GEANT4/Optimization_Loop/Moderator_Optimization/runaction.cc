@@ -1,5 +1,4 @@
 #include "runaction.hh"
-#include "construction.hh"
 #include <fstream>
 #include <vector>
 #include "G4AccumulableManager.hh"
@@ -9,7 +8,6 @@
 #include "G4THitsMap.hh"
 #include "G4Event.hh"
 #include "G4AnalysisManager.hh"
-#include "G4RunManager.hh"
 
 MyRunAction::MyRunAction()
 {
@@ -29,22 +27,22 @@ MyRunAction::MyRunAction()
 
     // Ntuple 1: Detector (BSA_Output_Neutrons) -> ID = 1
     man->CreateNtuple("Detector", "BSA_Output_Neutrons"); 
-    man->CreateNtupleIColumn("fEvent");             
-    man->CreateNtupleDColumn("Energy_eV");            
+    man->CreateNtupleIColumn("fEvent");                     
+    man->CreateNtupleDColumn("Energy_eV");           
     man->CreateNtupleDColumn("CosTheta");              
-    man->CreateNtupleDColumn("fX_cm");                 
-    man->CreateNtupleDColumn("fY_cm");                 
-    man->CreateNtupleDColumn("R_cm");                  
+    man->CreateNtupleDColumn("fX_cm");                   
+    man->CreateNtupleDColumn("fY_cm");                   
+    man->CreateNtupleDColumn("R_cm");                    
     man->CreateNtupleDColumn("FluxWeight");            
     man->FinishNtuple(1); 
 
     // Ntuple 2: GammaOutput -> ID = 2
     man->CreateNtuple("GammaOutput", "BSA_Output_Gamma");
-    man->CreateNtupleIColumn("fEvent");             
-    man->CreateNtupleDColumn("Energy_MeV");           
-    man->CreateNtupleDColumn("fX_cm");                
-    man->CreateNtupleDColumn("fY_cm");                
-    man->CreateNtupleDColumn("FluxWeight");           
+    man->CreateNtupleIColumn("fEvent");                     
+    man->CreateNtupleDColumn("Energy_MeV");            
+    man->CreateNtupleDColumn("fX_cm");                   
+    man->CreateNtupleDColumn("fY_cm");                   
+    man->CreateNtupleDColumn("FluxWeight");            
     man->FinishNtuple(2);
 
     // Ntuple 3: TargetInterface -> ID = 3
@@ -53,28 +51,24 @@ MyRunAction::MyRunAction()
     man->CreateNtupleDColumn("Energy_eV");
     man->FinishNtuple(3);
 
-    // Ntuple 4: Target_Exit -> ID = 4
     man->CreateNtuple("Target_Exit", "Neutrons_After_Target");
     man->CreateNtupleIColumn("fEvent");
     man->CreateNtupleDColumn("Energy_eV");
     man->CreateNtupleDColumn("Weight");
     man->FinishNtuple(4);
 
-    // Ntuple 5: Moderator_Exit -> ID = 5
     man->CreateNtuple("Moderator_Exit", "Neutrons_After_Moderator");
     man->CreateNtupleIColumn("fEvent");
     man->CreateNtupleDColumn("Energy_eV");
     man->CreateNtupleDColumn("Weight");
     man->FinishNtuple(5);
 
-    // Ntuple 6: FastFilter_Exit -> ID = 6
     man->CreateNtuple("FastFilter_Exit", "Neutrons_After_FastFilter");
     man->CreateNtupleIColumn("fEvent");
     man->CreateNtupleDColumn("Energy_eV");
     man->CreateNtupleDColumn("Weight");
     man->FinishNtuple(6);
 
-    // Ntuple 7: GammaFilter_Exit -> ID = 7
     man->CreateNtuple("GammaFilter_Exit", "Neutrons_After_GammaFilter");
     man->CreateNtupleIColumn("fEvent");
     man->CreateNtupleDColumn("Energy_eV");
@@ -87,19 +81,25 @@ MyRunAction::MyRunAction()
     accumulableManager->Register(nModerator);
     accumulableManager->Register(nFastFilter);
     accumulableManager->Register(nGammaFilter);
-    accumulableManager->Register(nGamma);
     accumulableManager->Register(nCollimator);
     accumulableManager->Register(nReflector);
     accumulableManager->Register(nDetector);
     
-    accumulableManager->Register(dFastAccumulated);
-    accumulableManager->Register(dGammaAccumulated);
-    accumulableManager->Register(nNeutronsFromTarget); 
+    accumulableManager->Register(dFastFluxAccumulated);
+    accumulableManager->Register(dFastCurrentAccumulated);
+    accumulableManager->Register(dGammaFluxAccumulated);
+    accumulableManager->Register(dGammaCurrentAccumulated);
 
     accumulableManager->Register(nThermalFluxCount);
-    accumulableManager->Register(nEpithermal);
-    accumulableManager->Register(nFast);
-    accumulableManager->Register(nCurrentEpithermal);
+    accumulableManager->Register(nEpithermalFlux);
+    accumulableManager->Register(nFastFlux);
+
+    accumulableManager->Register(nThermalCurrentCount);
+    accumulableManager->Register(nEpithermalCurrent);
+    accumulableManager->Register(nFastCurrent);
+
+    accumulableManager->Register(nGammaFlux);
+    accumulableManager->Register(nGammaCurrent);
 }
 
 MyRunAction::~MyRunAction()
@@ -111,7 +111,7 @@ void MyRunAction::BeginOfRunAction(const G4Run*)
     accumulableManager->Reset();
 
     G4AnalysisManager* man = G4AnalysisManager::Instance();
-    man->OpenFile("output.csv");
+    man->OpenFile("output.root");
 }
 
 void MyRunAction::EndOfRunAction(const G4Run* aRun)
@@ -131,11 +131,11 @@ void MyRunAction::EndOfRunAction(const G4Run* aRun)
         G4double countFastFilt   = nFastFilter.GetValue();
         G4double countGammaFilt  = nGammaFilter.GetValue();
 
-        G4double masterThermalCounts    = nThermalFluxCount.GetValue();
-        G4double masterEpithermalCounts = nEpithermal.GetValue();
-        G4double masterFastCounts       = nFast.GetValue();
-        G4double masterCurrentEpithermal = nCurrentEpithermal.GetValue();
-        G4double numDetectorNeutrons    = nDetector.GetValue();  
+        G4double masterThermalCounts     = nThermalFluxCount.GetValue();
+        G4double masterEpithermalCounts = nEpithermalFlux.GetValue();
+        G4double masterFastCounts        = nFastFlux.GetValue();
+        G4double masterCurrentEpithermal = nEpithermalCurrent.GetValue();
+        G4double numDetectorNeutrons     = nDetector.GetValue();  
 
         G4cout << "\n=====================================================" << G4endl;
         G4cout << "         NEUTRON COUNTS AFTER EACH COMPONENT         " << G4endl;
@@ -153,7 +153,7 @@ void MyRunAction::EndOfRunAction(const G4Run* aRun)
         G4cout << "Weighted Thermal Surface-Flux Sum   (< 0.5 eV)   : " << masterThermalCounts << G4endl;
         G4cout << "Weighted Epithermal Surface-Flux Sum(0.5eV-10keV): " << masterEpithermalCounts << G4endl;
         G4cout << "Weighted Fast Surface-Flux Sum      (> 10 keV)   : " << masterFastCounts << G4endl;
-        G4cout << "Weighted Gamma Surface-Flux Sum      (At Boundary): " << nGamma.GetValue() << G4endl;
+        G4cout << "Weighted Gamma Surface-Flux Sum      (At Boundary): " << nGammaFlux.GetValue() << G4endl;
         G4cout << "Raw Detector Crossing Count                      : " << numDetectorNeutrons << G4endl;
         G4cout << "=====================================================\n" << G4endl;
 
@@ -164,7 +164,7 @@ void MyRunAction::EndOfRunAction(const G4Run* aRun)
         G4double fluxThermal    = masterThermalCounts / (A_cm2 * N_p); 
         G4double fluxEpithermal = masterEpithermalCounts / (A_cm2 * N_p);
         G4double fluxFast       = masterFastCounts / (A_cm2 * N_p);
-        G4double fluxGamma      = nGamma.GetValue() / (A_cm2 * N_p); 
+        G4double fluxGamma      = nGammaFlux.GetValue() / (A_cm2 * N_p); 
 
         G4cout << "=====================================================" << G4endl;
         G4cout << "         FINAL PARTICLE FLUX AT BSA OUTPUT           " << G4endl;
@@ -188,7 +188,7 @@ void MyRunAction::EndOfRunAction(const G4Run* aRun)
 
         G4cout << G4endl;
         G4cout << "=====================================================" << G4endl;
-        G4cout << "     REAL ABSOLUTE FLUX AT 30 mA BEAM CURRENT     " << G4endl;
+        G4cout << "     REAL ABSOLUTE FLUX AT 30 mA BEAM CURRENT      " << G4endl;
         G4cout << "=====================================================" << G4endl;
         G4cout << "Real Thermal Flux            : " << realFluxThermal    << " n/cm^2.s" << G4endl;
         G4cout << "Real Epithermal Flux (BNCT)  : " << realFluxEpithermal << " n/cm^2.s" << G4endl;
@@ -199,8 +199,8 @@ void MyRunAction::EndOfRunAction(const G4Run* aRun)
 
         G4double ratioThermalEpithermal = (masterEpithermalCounts > 0.0) ? (realFluxThermal / realFluxEpithermal) : 0.0;
         
-        G4double doseFastPerEpithermal  = (masterEpithermalCounts > 0.0) ? (dFastAccumulated.GetValue() / masterEpithermalCounts) : 0.0; 
-        G4double doseGammaPerEpithermal = (masterEpithermalCounts > 0.0) ? (dGammaAccumulated.GetValue() / masterEpithermalCounts) : 0.0;
+        G4double doseFastPerEpithermal  = (masterEpithermalCounts > 0.0) ? (dFastFluxAccumulated.GetValue() / masterEpithermalCounts) : 0.0; 
+        G4double doseGammaPerEpithermal = (masterEpithermalCounts > 0.0) ? (dGammaFluxAccumulated.GetValue() / masterEpithermalCounts) : 0.0;
 
         G4double directionality = (masterEpithermalCounts > 0.0) ? (masterCurrentEpithermal / masterEpithermalCounts) : 0.0;
 
@@ -232,30 +232,23 @@ void MyRunAction::EndOfRunAction(const G4Run* aRun)
         G4cout << "6. Beam Directionality (J / Phi_epi) (IAEA Target: > 0.7)-> Value: " << directionality << G4endl;
         G4cout << "=====================================================" << G4endl;
 
-        // --- حفظ النتائج تلقائياً في ملف الـ CSV ---
-        std::ifstream checkFile("moderator_sweep_summary.csv");
-        bool isEmpty = !checkFile.is_open() || checkFile.peek() == std::ifstream::traits_type::eof();
-        checkFile.close();
-
-        std::ofstream summaryFile("moderator_sweep_summary.csv", std::ios::app);
-        
-        if (isEmpty) {
-            summaryFile << "ModeratorThickness,RealEpithermalFlux,RatioThermalEpi,DoseFastEpi,DoseGammaEpi,Directionality\n";
+        // --- حفظ النتائج تلقائياً في ملف الـ CSV (اختياري / أو إبقاء الحفظ تلقائياً) ---
+        G4double moderatorThickness = 0.0; 
+        {
+            std::ofstream file1("moderator_sweep_surface_flux.csv", std::ios::app);
+            file1.seekp(0, std::ios::end);
+            if (file1.tellp() == 0) {
+                file1 << "ModeratorThickness,ThermalFlux,EpithermalFlux,FastFlux,Phi_epi_per_Phi_fast,Phi_thermal_per_Phi_epi,D_fast_per_Phi_epi,D_gamma_per_Phi_epi\n";
+            }
+            file1 << moderatorThickness << ","
+                  << realFluxThermal << ","
+                  << realFluxEpithermal << ","
+                  << realFluxFast << ","
+                  << (realFluxFast > 0.0 ? realFluxEpithermal / realFluxFast : 0.0) << ","
+                  << ratioThermalEpithermal << ","
+                  << doseFastPerEpithermal << ","
+                  << doseGammaPerEpithermal << "\n";
+            file1.close();
         }
-
-        const MyDetectorConstruction* detectorConstruction = static_cast<const MyDetectorConstruction*>(
-            G4RunManager::GetRunManager()->GetUserDetectorConstruction()
-        );
-        G4double modThick_cm = detectorConstruction ? (detectorConstruction->GetModeratorThickness() / CLHEP::cm) : 0.0;
-
-        summaryFile << modThick_cm << ","
-                    << realFluxEpithermal << ","
-                    << ratioThermalEpithermal << ","
-                    << doseFastPerEpithermal << ","
-                    << doseGammaPerEpithermal << ","
-                    << directionality << "\n";
-        
-        summaryFile.close();
-        G4cout << "-> Results successfully appended to moderator_sweep_summary.csv" << G4endl;
     }
 }
